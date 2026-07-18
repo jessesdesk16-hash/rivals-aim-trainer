@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COD × Blood Strike</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- MAIN MENU -->
+  <div id="main-menu">
+    <div class="title">COD × BLOOD STRIKE</div>
+    <div class="subtitle">TACTICAL WARFARE</div>
+    
+    <div style="margin-top: 1rem; margin-bottom: 1rem;">
+      <select id="game-mode-select" style="background: rgba(0,0,0,0.8); border: 1px solid #00f0ff; color: #00f0ff; font-family: 'Orbitron'; font-size: 1.2rem; padding: 10px; cursor: pointer;">
+        <option value="TDM">TEAM DEATHMATCH</option>
+        <option value="HARDPOINT">HARDPOINT</option>
+      </select>
+    </div>
+
+    <button id="start-btn">DEPLOY</button>
+    <button class="menu-btn" id="open-loadout-btn" style="margin-top: 1rem; border-color: #ffaa00; color: #ffaa00;">LOADOUT & SKINS</button>
+    <button class="menu-btn" id="open-crosshair-btn" style="margin-top: 1rem; border-color: #00ff88; color: #00ff88;">CROSSHAIR EDITOR</button>
+    <button class="menu-btn" id="open-controls-btn" style="margin-top: 1rem; border-color: #ff3e3e; color: #ff3e3e;">CONTROLS</button>
+    <div class="controls-info">
+      <span>WASD</span> Move &nbsp;|&nbsp; <span>MOUSE</span> Aim &nbsp;|&nbsp; <span>CLICK</span> Shoot &nbsp;|&nbsp; <span>RIGHT CLICK</span> ADS<br>
+      <span>SHIFT</span> Sprint &nbsp;|&nbsp; <span>SPACE</span> Jump &nbsp;|&nbsp; <span>C</span> Slide &nbsp;|&nbsp; <span>R</span> Reload<br>
+      <span>1 2 3</span> Switch Weapons &nbsp;|&nbsp; <span>ESC</span> Pause
+    </div>
+  </div>
+
+  <!-- HUD OVERLAY -->
+  <div id="hud">
+    <!-- Health Bar -->
+    <div class="stat-bars">
+      <div class="bar-container">
+        <div class="bar-fill" id="health-fill" style="width:100%"></div>
+        <span class="bar-label">HP</span>
+        <span class="bar-text" id="health-text">100</span>
+      </div>
+      <div class="bar-container">
+        <div class="bar-fill" id="armor-fill" style="width:0%"></div>
+        <span class="bar-label">ARMOR</span>
+        <span class="bar-text" id="armor-text">0</span>
+      </div>
+    </div>
+
+    <!-- Ammo Display -->
+    <div id="ammo-display">
+      <div id="weapon-name">PHANTOM AR</div>
+      <span id="ammo-current">30</span><span id="ammo-max">/30</span>
+      <div id="ammo-reserve">150</div>
+      <div id="reload-indicator" style="display:none">RELOADING</div>
+    </div>
+
+    <!-- Crosshair -->
+    <div id="crosshair">
+      <div class="crosshair-line crosshair-top"></div>
+      <div class="crosshair-line crosshair-bottom"></div>
+      <div class="crosshair-line crosshair-left"></div>
+      <div class="crosshair-line crosshair-right"></div>
+      <div class="crosshair-dot"></div>
+    </div>
+
+    <!-- Hit Marker -->
+    <div id="hit-marker">
+      <div class="hm-line"></div><div class="hm-line"></div>
+      <div class="hm-line"></div><div class="hm-line"></div>
+    </div>
+
+    <!-- Kill Feed -->
+    <div id="kill-feed"></div>
+
+    <!-- Minimap -->
+    <div id="minimap-container">
+      <canvas id="minimap" width="180" height="180"></canvas>
+    </div>
+
+    <!-- Wave & Kills -->
+    <div id="wave-info">WAVE 1</div>
+    <div id="kill-count">KILLS: 0</div>
+
+    <!-- Zone Warning -->
+    <div id="zone-warning">⚠ OUTSIDE SAFE ZONE ⚠</div>
+
+    <!-- Damage Overlay -->
+    <div id="damage-overlay"></div>
+    <div id="directional-damage"></div>
+
+    <!-- Kill Streak Notification -->
+    <div id="kill-streak-notification"></div>
+
+    <!-- Wave Announce -->
+    <div id="wave-announce"></div>
+
+    <!-- Weapon Slots -->
+    <div id="weapon-slots">
+      <div class="weapon-slot active"><span class="slot-key">1</span>AR</div>
+      <div class="weapon-slot"><span class="slot-key">2</span>SMG</div>
+      <div class="weapon-slot"><span class="slot-key">3</span>SNP</div>
+    </div>
+  </div>
+
+  <!-- PAUSE MENU -->
+  <div id="pause-menu">
+    <h2>PAUSED</h2>
+    <button class="menu-btn" id="resume-btn">RESUME</button>
+    <button class="menu-btn" id="quit-btn">QUIT TO MENU</button>
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="game-over">
+    <h2>MISSION FAILED</h2>
+    <div id="game-over-stats"></div>
+    <button class="menu-btn" id="redeploy-btn">REDEPLOY</button>
+  </div>
+
+  <!-- LOADOUT MENU -->
+  <div id="loadout-menu">
+    <h2>LOADOUT & SKINS</h2>
+    <div id="loadout-slots">
+      <div class="loadout-slot" data-slot="0">
+        <h3>SLOT 1</h3>
+        <select class="weapon-select">
+          <option value="0" selected>AK-47</option>
+          <option value="1">VIPER SMG</option>
+          <option value="2">THUNDER SNIPER</option>
+          <option value="3">PUMP SHOTGUN</option>
+          <option value="4">HEAVY LMG</option>
+          <option value="5">TACTICAL PISTOL</option>
+        </select>
+        <div class="skin-label">WEAPON SKIN</div>
+        <div class="skin-selector">
+          <div class="skin-swatch" data-skin="0xdd3333" style="background: #dd3333;" title="Crimson Red"></div>
+          <div class="skin-swatch" data-skin="0x00d0ff" style="background: #00d0ff;" title="Neon Cyan"></div>
+          <div class="skin-swatch" data-skin="0x44dd44" style="background: #44dd44;" title="Toxic Green"></div>
+          <div class="skin-swatch" data-skin="0xffaa00" style="background: #ffaa00;" title="Gold"></div>
+          <div class="skin-swatch" data-skin="0x111111" style="background: #111111;" title="Midnight Black"></div>
+          <div class="skin-swatch" data-skin="0xeeeeee" style="background: #eeeeee;" title="Arctic White"></div>
+        </div>
+      </div>
+      <div class="loadout-slot" data-slot="1">
+        <h3>SLOT 2</h3>
+        <select class="weapon-select">
+          <option value="0">AK-47</option>
+          <option value="1" selected>VIPER SMG</option>
+          <option value="2">THUNDER SNIPER</option>
+          <option value="3">PUMP SHOTGUN</option>
+          <option value="4">HEAVY LMG</option>
+          <option value="5">TACTICAL PISTOL</option>
+        </select>
+        <div class="skin-label">WEAPON SKIN</div>
+        <div class="skin-selector">
+          <div class="skin-swatch" data-skin="0xdd3333" style="background: #dd3333;" title="Crimson Red"></div>
+          <div class="skin-swatch" data-skin="0x00d0ff" style="background: #00d0ff;" title="Neon Cyan"></div>
+          <div class="skin-swatch" data-skin="0x44dd44" style="background: #44dd44;" title="Toxic Green"></div>
+          <div class="skin-swatch" data-skin="0xffaa00" style="background: #ffaa00;" title="Gold"></div>
+          <div class="skin-swatch" data-skin="0x111111" style="background: #111111;" title="Midnight Black"></div>
+          <div class="skin-swatch" data-skin="0xeeeeee" style="background: #eeeeee;" title="Arctic White"></div>
+        </div>
+      </div>
+      <div class="loadout-slot" data-slot="2">
+        <h3>SLOT 3</h3>
+        <select class="weapon-select">
+          <option value="0">AK-47</option>
+          <option value="1">VIPER SMG</option>
+          <option value="2" selected>THUNDER SNIPER</option>
+          <option value="3">PUMP SHOTGUN</option>
+          <option value="4">HEAVY LMG</option>
+          <option value="5">TACTICAL PISTOL</option>
+        </select>
+        <div class="skin-label">WEAPON SKIN</div>
+        <div class="skin-selector">
+          <div class="skin-swatch" data-skin="0xdd3333" style="background: #dd3333;" title="Crimson Red"></div>
+          <div class="skin-swatch" data-skin="0x00d0ff" style="background: #00d0ff;" title="Neon Cyan"></div>
+          <div class="skin-swatch" data-skin="0x44dd44" style="background: #44dd44;" title="Toxic Green"></div>
+          <div class="skin-swatch" data-skin="0xffaa00" style="background: #ffaa00;" title="Gold"></div>
+          <div class="skin-swatch" data-skin="0x111111" style="background: #111111;" title="Midnight Black"></div>
+          <div class="skin-swatch" data-skin="0xeeeeee" style="background: #eeeeee;" title="Arctic White"></div>
+        </div>
+      </div>
+    </div>
+    <button class="menu-btn" id="close-loadout-btn" style="margin-top: 3rem;">BACK TO MENU</button>
+  </div>
+
+  <!-- CROSSHAIR EDITOR -->
+  <div id="crosshair-editor" style="display: none; position: fixed; inset: 0; z-index: 150; background: rgba(5,5,10,0.95); flex-direction: column; align-items: center; justify-content: center; color: white; font-family: 'Rajdhani', sans-serif;">
+    <h2 style="font-family: 'Orbitron'; color: #00ff88; font-size: 3rem; margin-bottom: 2rem; letter-spacing: 0.2em; text-shadow: 0 0 20px rgba(0,255,136,0.5);">CROSSHAIR EDITOR</h2>
+    
+    <!-- Preview -->
+    <div style="width: 200px; height: 200px; background: #111; border: 1px solid #333; position: relative; margin-bottom: 2rem;">
+      <div id="crosshair-preview" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 0; height: 0;">
+        <div class="crosshair-line crosshair-top"></div>
+        <div class="crosshair-line crosshair-bottom"></div>
+        <div class="crosshair-line crosshair-left"></div>
+        <div class="crosshair-line crosshair-right"></div>
+      </div>
+    </div>
+
+    <div style="background: rgba(20,20,30,0.8); padding: 2rem; border: 1px solid rgba(0,255,136,0.2); width: 350px; display: flex; flex-direction: column; gap: 1rem;">
+      <div>
+        <label style="color: #888; letter-spacing: 0.1em;">COLOR</label>
+        <input type="color" id="ch-color" value="#ffffff" style="width: 100%; height: 40px; cursor: pointer; border: none; background: transparent;">
+      </div>
+      <div>
+        <label style="color: #888; letter-spacing: 0.1em;">SIZE</label>
+        <input type="range" id="ch-size" min="2" max="50" value="15" style="width: 100%;">
+      </div>
+      <div>
+        <label style="color: #888; letter-spacing: 0.1em;">THICKNESS</label>
+        <input type="range" id="ch-thick" min="1" max="10" value="2" style="width: 100%;">
+      </div>
+      <div>
+        <label style="color: #888; letter-spacing: 0.1em;">GAP</label>
+        <input type="range" id="ch-gap" min="0" max="30" value="5" style="width: 100%;">
+      </div>
+    </div>
+
+    <button class="menu-btn" id="close-crosshair-btn" style="margin-top: 2rem; border-color: #00ff88; color: #00ff88;">SAVE & BACK</button>
+  </div>
+
+  <!-- CONTROLS MENU -->
+  <div id="controls-menu" style="display: none; position: fixed; inset: 0; z-index: 150; background: rgba(5,5,10,0.95); flex-direction: column; align-items: center; justify-content: center; color: white; font-family: 'Rajdhani', sans-serif;">
+    <h2 style="font-family: 'Orbitron'; color: #ff3e3e; font-size: 3rem; margin-bottom: 2rem; letter-spacing: 0.2em; text-shadow: 0 0 20px rgba(255,62,62,0.5);">CONTROLS</h2>
+    
+    <div style="background: rgba(20,20,30,0.8); padding: 2rem; border: 1px solid rgba(255,62,62,0.2); width: 400px; display: flex; flex-direction: column; gap: 1rem; max-height: 60vh; overflow-y: auto;">
+      <p style="text-align: center; color: #888; font-size: 0.9rem;">Click a key to rebind it, then press the new key.</p>
+      
+      <div class="control-row" data-action="forward" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.3);">
+        <span>Move Forward</span> <button class="keybind-btn" style="background: #222; border: 1px solid #ff3e3e; color: white; padding: 5px 15px; cursor: pointer; min-width: 80px;">W</button>
+      </div>
+      <div class="control-row" data-action="backward" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.3);">
+        <span>Move Backward</span> <button class="keybind-btn" style="background: #222; border: 1px solid #ff3e3e; color: white; padding: 5px 15px; cursor: pointer; min-width: 80px;">S</button>
+      </div>
+      <div class="control-row" data-action="left" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.3);">
+        <span>Move Left</span> <button class="keybind-btn" style="background: #222; border: 1px solid #ff3e3e; color: white; padding: 5px 15px; cursor: pointer; min-width: 80px;">A</button>
+      </div>
+      <div class="control-row" data-action="right" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.3);">
+        <span>Move Right</span> <button class="keybind-btn" style="background: #222; border: 1px solid #ff3e3e; color: white; padding: 5px 15px; cursor: pointer; min-width: 80px;">D</button>
+      </div>
+      <div class="control-row" data-action="jump" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.3);">
+        <span>Jump</span> <button class="keybind-btn" style="background: #222; border: 1px solid #ff3e3e; color: white; padding: 5px 15px; cursor: pointer; min-width: 80px;">Space</button>
+      </div>
+      <div class="control-row" data-action="sprint" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.3);">
+        <span>Sprint</span> <button class="keybind-btn" style="background: #222; border: 1px solid #ff3e3e; color: white; padding: 5px 15px; cursor: pointer; min-width: 80px;">ShiftLeft</button>
+      </div>
+      <div class="control-row" data-action="reload" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.3);">
+        <span>Reload</span> <button class="keybind-btn" style="background: #222; border: 1px solid #ff3e3e; color: white; padding: 5px 15px; cursor: pointer; min-width: 80px;">R</button>
+      </div>
+      <div class="control-row" data-action="melee" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.3);">
+        <span>Melee</span> <button class="keybind-btn" style="background: #222; border: 1px solid #ff3e3e; color: white; padding: 5px 15px; cursor: pointer; min-width: 80px;">F</button>
+      </div>
+      <div class="control-row" data-action="wep1" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.3);">
+        <span>Weapon 1</span> <button class="keybind-btn" style="background: #222; border: 1px solid #ff3e3e; color: white; padding: 5px 15px; cursor: pointer; min-width: 80px;">1</button>
+      </div>
+      <div class="control-row" data-action="wep2" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.3);">
+        <span>Weapon 2</span> <button class="keybind-btn" style="background: #222; border: 1px solid #ff3e3e; color: white; padding: 5px 15px; cursor: pointer; min-width: 80px;">2</button>
+      </div>
+      <div class="control-row" data-action="wep3" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.3);">
+        <span>Weapon 3</span> <button class="keybind-btn" style="background: #222; border: 1px solid #ff3e3e; color: white; padding: 5px 15px; cursor: pointer; min-width: 80px;">3</button>
+      </div>
+    </div>
+
+    <button class="menu-btn" id="close-controls-btn" style="margin-top: 2rem; border-color: #ff3e3e; color: #ff3e3e;">SAVE & BACK</button>
+  </div>
+
+  <script type="importmap">
+  { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
