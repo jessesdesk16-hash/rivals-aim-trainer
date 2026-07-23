@@ -14,10 +14,23 @@
     <div class="title">COD × BLOOD STRIKE</div>
     <div class="subtitle">TACTICAL WARFARE</div>
     
-    <div style="margin-top: 1rem; margin-bottom: 1rem;">
-      <select id="game-mode-select" style="background: rgba(0,0,0,0.8); border: 1px solid #00f0ff; color: #00f0ff; font-family: 'Orbitron'; font-size: 1.2rem; padding: 10px; cursor: pointer;">
+    <div style="margin-top: 1rem; margin-bottom: 1rem; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+      <select id="map-select" style="background: rgba(0,0,0,0.8); border: 1px solid #00f0ff; color: #00f0ff; font-family: 'Orbitron'; font-size: 1.2rem; padding: 10px; cursor: pointer;">
+        <option value="NEON">NEON CITY</option>
+        <option value="DESERT">DESERT OUTPOST</option>
+        <option value="FACILITY">ABANDONED FACILITY</option>
+      </select>
+      <select id="team-size-select" style="background: rgba(0,0,0,0.8); border: 1px solid #00ff88; color: #00ff88; font-family: 'Orbitron'; font-size: 1.2rem; padding: 10px; cursor: pointer;">
+        <option value="5" selected>5v5</option>
+        <option value="4">4v4</option>
+        <option value="3">3v3</option>
+        <option value="2">2v2</option>
+        <option value="1">1v1</option>
+      </select>
+      <select id="game-mode-select" style="background: rgba(0,0,0,0.8); border: 1px solid #ffaa00; color: #ffaa00; font-family: 'Orbitron'; font-size: 1.2rem; padding: 10px; cursor: pointer;">
         <option value="TDM">TEAM DEATHMATCH</option>
         <option value="HARDPOINT">HARDPOINT</option>
+        <option value="ELIMINATION">ELIMINATION (CS2)</option>
       </select>
     </div>
 
@@ -28,7 +41,7 @@
     <div class="controls-info">
       <span>WASD</span> Move &nbsp;|&nbsp; <span>MOUSE</span> Aim &nbsp;|&nbsp; <span>CLICK</span> Shoot &nbsp;|&nbsp; <span>RIGHT CLICK</span> ADS<br>
       <span>SHIFT</span> Sprint &nbsp;|&nbsp; <span>SPACE</span> Jump &nbsp;|&nbsp; <span>C</span> Slide &nbsp;|&nbsp; <span>R</span> Reload<br>
-      <span>1 2 3</span> Switch Weapons &nbsp;|&nbsp; <span>ESC</span> Pause
+      <span>1 2 3</span> Switch Weapons &nbsp;|&nbsp; <span>B</span> Gun Spin &nbsp;|&nbsp; <span>V</span> Gun Flip &nbsp;|&nbsp; <span>ESC</span> Pause
     </div>
   </div>
 
@@ -53,6 +66,7 @@
       <div id="weapon-name">PHANTOM AR</div>
       <span id="ammo-current">30</span><span id="ammo-max">/30</span>
       <div id="ammo-reserve">150</div>
+      <div id="grenade-count" style="margin-top: 5px; font-size: 1.5rem; color: #44aa44;">🧨 2</div>
       <div id="reload-indicator" style="display:none">RELOADING</div>
     </div>
 
@@ -131,6 +145,7 @@
           <option value="3">PUMP SHOTGUN</option>
           <option value="4">HEAVY LMG</option>
           <option value="5">TACTICAL PISTOL</option>
+          <option value="6">SHERIFF</option>
         </select>
         <div class="skin-label">WEAPON SKIN</div>
         <div class="skin-selector">
@@ -151,6 +166,7 @@
           <option value="3">PUMP SHOTGUN</option>
           <option value="4">HEAVY LMG</option>
           <option value="5">TACTICAL PISTOL</option>
+          <option value="6">SHERIFF</option>
         </select>
         <div class="skin-label">WEAPON SKIN</div>
         <div class="skin-selector">
@@ -171,6 +187,7 @@
           <option value="3">PUMP SHOTGUN</option>
           <option value="4">HEAVY LMG</option>
           <option value="5">TACTICAL PISTOL</option>
+          <option value="6">SHERIFF</option>
         </select>
         <div class="skin-label">WEAPON SKIN</div>
         <div class="skin-selector">
@@ -182,8 +199,20 @@
           <div class="skin-swatch" data-skin="0xeeeeee" style="background: #eeeeee;" title="Arctic White"></div>
         </div>
       </div>
+      <!-- MELEE SKIN SLOT -->
+      <div class="loadout-slot" data-slot="melee" style="width:100%; max-width:400px; margin-top:2rem;">
+        <h3>MELEE WEAPON</h3>
+        <select id="melee-select" class="weapon-select" style="border-color:#ff3e3e; color:#ff3e3e;">
+          <option value="DEFAULT" selected>DEFAULT FIST</option>
+          <option value="BOXING">BOXING GLOVES</option>
+          <option value="SICKLE">SICKLE</option>
+        </select>
+      </div>
     </div>
-    <button class="menu-btn" id="close-loadout-btn" style="margin-top: 3rem;">BACK TO MENU</button>
+    <div style="display: flex; gap: 1rem; margin-top: 3rem;">
+      <button class="menu-btn" id="loadout-deploy-btn" style="border-color: #00ff88; color: #00ff88;">START MATCH</button>
+      <button class="menu-btn" id="close-loadout-btn">BACK TO MENU</button>
+    </div>
   </div>
 
   <!-- CROSSHAIR EDITOR -->
@@ -252,6 +281,12 @@
       </div>
       <div class="control-row" data-action="melee" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.3);">
         <span>Melee</span> <button class="keybind-btn" style="background: #222; border: 1px solid #ff3e3e; color: white; padding: 5px 15px; cursor: pointer; min-width: 80px;">F</button>
+      </div>
+      <div class="control-row" data-action="spin" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.3);">
+        <span>Gun Spin (Sheriff)</span> <button class="keybind-btn" style="background: #222; border: 1px solid #ff3e3e; color: white; padding: 5px 15px; cursor: pointer; min-width: 80px;">B</button>
+      </div>
+      <div class="control-row" data-action="flip" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.3);">
+        <span>Gun Flip (Sheriff)</span> <button class="keybind-btn" style="background: #222; border: 1px solid #ff3e3e; color: white; padding: 5px 15px; cursor: pointer; min-width: 80px;">V</button>
       </div>
       <div class="control-row" data-action="wep1" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.3);">
         <span>Weapon 1</span> <button class="keybind-btn" style="background: #222; border: 1px solid #ff3e3e; color: white; padding: 5px 15px; cursor: pointer; min-width: 80px;">1</button>

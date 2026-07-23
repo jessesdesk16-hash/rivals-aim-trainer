@@ -22,66 +22,114 @@ export class HUD {
     this.weaponSlots = document.getElementById('weapon-slots');
     this.reloadIndicator = document.getElementById('reload-indicator');
     this.waveAnnounce = document.getElementById('wave-announce');
+    this.grenadeEl = document.getElementById('grenade-count');
     this.ctx = this.minimap ? this.minimap.getContext('2d') : null;
     this.hitMarkerTimer = 0;
     this.damageTimer = 0;
     this.streakTimer = 0;
     this.waveAnnounceTimer = 0;
+    // Cache of last-written values — DOM is only touched when something changes
+    this._last = {};
   }
 
   update(data) {
     const d = data;
+    const L = this._last;
     // Health
     if (this.healthFill) {
-      const hp = (d.health / d.maxHealth) * 100;
-      this.healthFill.style.width = hp + '%';
-      this.healthText.textContent = Math.ceil(d.health);
-      if (d.health < 25) this.healthFill.style.background = 'linear-gradient(90deg,#cc0000,#ff3333)';
-      else this.healthFill.style.background = 'linear-gradient(90deg,#00cc66,#00ff88)';
+      const hp = Math.ceil(d.health);
+      if (L.hp !== hp) {
+        L.hp = hp;
+        this.healthFill.style.width = (d.health / d.maxHealth) * 100 + '%';
+        this.healthText.textContent = hp;
+      }
+      const lowHp = d.health < 25;
+      if (L.lowHp !== lowHp) {
+        L.lowHp = lowHp;
+        this.healthFill.style.background = lowHp
+          ? 'linear-gradient(90deg,#cc0000,#ff3333)'
+          : 'linear-gradient(90deg,#00cc66,#00ff88)';
+      }
     }
     // Armor
     if (this.armorFill) {
-      this.armorFill.style.width = (d.armor / d.maxArmor) * 100 + '%';
-      this.armorText.textContent = Math.ceil(d.armor);
+      const ar = Math.ceil(d.armor);
+      if (L.armor !== ar) {
+        L.armor = ar;
+        this.armorFill.style.width = (d.armor / d.maxArmor) * 100 + '%';
+        this.armorText.textContent = ar;
+      }
     }
     // Ammo
     if (this.ammoCurrent) {
-      this.ammoCurrent.textContent = d.ammo;
-      this.ammoMax.textContent = '/' + d.maxAmmo;
-      this.ammoReserve.textContent = d.reserve;
-      this.weaponName.textContent = d.weaponName;
+      if (L.ammo !== d.ammo) { L.ammo = d.ammo; this.ammoCurrent.textContent = d.ammo; }
+      if (L.maxAmmo !== d.maxAmmo) { L.maxAmmo = d.maxAmmo; this.ammoMax.textContent = '/' + d.maxAmmo; }
+      if (L.reserve !== d.reserve) { L.reserve = d.reserve; this.ammoReserve.textContent = d.reserve; }
+      if (L.weaponName !== d.weaponName) { L.weaponName = d.weaponName; this.weaponName.textContent = d.weaponName; }
     }
     // Reload
-    if (this.reloadIndicator) {
+    if (this.reloadIndicator && L.isReloading !== d.isReloading) {
+      L.isReloading = d.isReloading;
       this.reloadIndicator.style.display = d.isReloading ? 'block' : 'none';
     }
     // Crosshair spread
     if (this.crosshair) {
       const spread = d.isADS ? 4 : (d.spread || 12);
-      this.crosshair.style.setProperty('--spread', spread + 'px');
+      if (L.spread !== spread) {
+        L.spread = spread;
+        this.crosshair.style.setProperty('--spread', spread + 'px');
+      }
     }
     // Weapon slots
-    if (this.weaponSlots) {
+    if (this.weaponSlots && L.weaponIndex !== d.weaponIndex) {
+      L.weaponIndex = d.weaponIndex;
       const slots = this.weaponSlots.children;
       for (let i = 0; i < slots.length; i++) {
         slots[i].classList.toggle('active', i === d.weaponIndex);
       }
     }
     // Scores & Info
-    if (this.scoreBlue) this.scoreBlue.textContent = d.blueScore || 0;
-    if (this.scoreRed) this.scoreRed.textContent = d.redScore || 0;
-    
-    if (d.gameMode === 'HARDPOINT') {
-       if (this.gameModeInfo) {
-          this.gameModeInfo.innerHTML = `HARDPOINT<br><span id="hardpoint-timer" style="font-size: 0.9rem; color: #ffaa00;">${d.hardpointStatus || 'MOVING'}</span>`;
-       }
-    } else {
-       if (this.gameModeInfo) {
-          this.gameModeInfo.innerHTML = `TEAM DEATHMATCH<br><span id="hardpoint-timer" style="font-size: 0.9rem; color: #ffaa00;">FIRST TO 50</span>`;
-       }
+    if (this.scoreBlue && L.blueScore !== d.blueScore) { L.blueScore = d.blueScore; this.scoreBlue.textContent = d.blueScore || 0; }
+    if (this.scoreRed && L.redScore !== d.redScore) { L.redScore = d.redScore; this.scoreRed.textContent = d.redScore || 0; }
+
+    if (this.gameModeInfo) {
+      let info;
+      if (d.gameMode === 'ELIMINATION') {
+        info = `ROUND ${d.roundNumber || 1} / 5`;
+        if (d.buyPhaseTimer > 0) {
+          info += `<br><span style="font-size: 1.2rem; color: #ffaa00; animation: pulse 0.5s infinite;">ROUND STARTS IN ${d.buyPhaseTimer}</span>`;
+        } else {
+          // Count alive
+          let blueAlive = 0, redAlive = 0;
+          if (d.enemies) {
+            for (const e of d.enemies) {
+              if (e.alive) { if (e.team === 1) blueAlive++; else redAlive++; }
+            }
+          }
+          if (d.health > 0) blueAlive++; // player
+          info += `<br><span style="font-size: 0.9rem; color: #00aaff;">🔵 ${blueAlive}</span> <span style="color: #666;">vs</span> <span style="font-size: 0.9rem; color: #ff3e3e;">${redAlive} 🔴</span>`;
+        }
+      } else if (d.gameMode === 'HARDPOINT') {
+        info = `HARDPOINT<br><span style="font-size: 0.9rem; color: #ffaa00;">${d.hardpointStatus || 'MOVING'}</span>`;
+      } else {
+        info = `TEAM DEATHMATCH<br><span style="font-size: 0.9rem; color: #ffaa00;">FIRST TO 50</span>`;
+      }
+      if (L.modeInfo !== info) {
+        L.modeInfo = info;
+        this.gameModeInfo.innerHTML = info;
+      }
     }
 
-    if (this.killCount) this.killCount.textContent = 'KILLS: ' + d.kills;
+    // Grenade count display
+    if (this.grenadeEl && d.grenadeCount !== undefined && L.grenadeCount !== d.grenadeCount) {
+      L.grenadeCount = d.grenadeCount;
+      this.grenadeEl.textContent = '🧨 ' + d.grenadeCount;
+    }
+
+    if (this.killCount && L.kills !== d.kills) {
+      L.kills = d.kills;
+      this.killCount.textContent = 'KILLS: ' + d.kills;
+    }
     // Damage overlay fade
     if (this.damageTimer > 0) {
       this.damageTimer -= d.delta;
@@ -140,8 +188,8 @@ export class HUD {
     if (d.enemies) {
       for (const e of d.enemies) {
         if (!e.alive) continue;
-        const ex = (e.x - d.playerPos.x) * scale;
-        const ez = (e.z - d.playerPos.z) * scale;
+        const ex = (e.position.x - d.playerPos.x) * scale;
+        const ez = (e.position.z - d.playerPos.z) * scale;
         if (Math.abs(ex) < size / 2 && Math.abs(ez) < size / 2) {
           c.fillStyle = e.team === 1 ? '#00d0ff' : '#ff3e3e';
           c.beginPath();
@@ -183,10 +231,36 @@ export class HUD {
     }
   }
 
-  showKillFeed(message) {
+  showKillFeed(killer, victim = null, weapon = null, isHeadshot = false) {
     const el = document.createElement('div');
     el.className = 'kill-msg';
-    el.textContent = message;
+
+    if (!victim) {
+      // System message
+      const isNegative = killer.includes('☠');
+      el.innerHTML = `<span class="${isNegative ? 'kill-enemy-system' : 'kill-system'}">${killer}</span>`;
+    } else {
+      // Weapon SVG mapping
+      const icons = {
+        'AK-47': '<svg viewBox="0 0 100 30" style="height:24px; fill:white; opacity:0.9"><path d="M0,22 L15,22 L25,10 L80,10 L80,13 L100,13 L100,16 L80,16 L70,22 L50,22 C48,28 44,30 40,30 L35,30 C40,26 42,24 42,22 L20,22 Z"/></svg>',
+        'VIPER SMG': '<svg viewBox="0 0 100 30" style="height:22px; fill:white; opacity:0.9"><path d="M20,22 L25,12 L60,12 L60,16 L80,16 L80,18 L60,18 L55,22 L45,22 L45,30 L35,30 L35,22 Z"/></svg>',
+        'THUNDER SNIPER': '<svg viewBox="0 0 100 30" style="height:24px; fill:white; opacity:0.9"><path d="M0,22 L15,22 L25,12 L100,12 L100,16 L50,16 L45,22 L20,22 Z M40,6 L70,6 L70,10 L40,10 Z"/></svg>',
+        'PUMP SHOTGUN': '<svg viewBox="0 0 100 30" style="height:24px; fill:white; opacity:0.9"><path d="M0,20 L15,20 L25,12 L90,12 L90,16 L50,16 L45,20 L20,20 Z M60,16 L80,16 L80,20 L60,20 Z"/></svg>',
+        'HEAVY LMG': '<svg viewBox="0 0 100 30" style="height:26px; fill:white; opacity:0.9"><path d="M0,22 L15,22 L25,10 L95,10 L95,15 L70,15 L65,22 L50,22 L50,28 L35,28 L35,22 L20,22 Z M70,15 L75,25 L80,25 L75,15 Z"/></svg>',
+        'TACTICAL PISTOL': '<svg viewBox="0 0 100 30" style="height:20px; fill:white; opacity:0.9"><path d="M40,22 L45,10 L80,10 L80,16 L65,16 L60,22 L55,30 L45,30 Z"/></svg>',
+        'MELEE': '<svg viewBox="0 0 100 30" style="height:20px; fill:white; opacity:0.9"><path d="M10,25 L30,15 L90,15 L95,20 L35,20 L20,28 Z M80,5 L90,15 L70,15 Z"/></svg>',
+        'UNKNOWN': '<svg viewBox="0 0 30 30" style="height:20px; fill:white; opacity:0.9"><circle cx="15" cy="12" r="10"/><path d="M10,22 L20,22 L20,28 L10,28 Z"/></svg>'
+      };
+      const icon = icons[weapon] || '🔫';
+
+      el.innerHTML = `
+        <span class="kill-killer">${killer}</span>
+        <span class="kill-weapon">${icon}</span>
+        ${isHeadshot ? '<span class="kill-hs">💀</span>' : ''}
+        <span class="kill-victim">${victim}</span>
+      `;
+    }
+
     this.killFeed.appendChild(el);
     if (this.killFeed.children.length > 5) this.killFeed.removeChild(this.killFeed.firstChild);
     setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 4000);

@@ -1,123 +1,162 @@
 import * as THREE from 'three';
 
+// Shared geometries and materials — created once, reused forever
+const SHARED = {
+  particleGeo: new THREE.SphereGeometry(1, 4, 4),  // scaled per-particle
+  flashGeo: new THREE.SphereGeometry(0.15, 4, 4),
+  tracerGeo: new THREE.CylinderGeometry(0.02, 0.02, 1, 4),
+  mats: {
+    muzzle: new THREE.MeshBasicMaterial({ color: 0xffffaa, transparent: true }),
+    tracer: new THREE.MeshBasicMaterial({ color: 0xffffcc, transparent: true, opacity: 0.8 }),
+    spark: new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true }),
+    blood: new THREE.MeshBasicMaterial({ color: 0xcc0000, transparent: true }),
+    explosion: [
+      new THREE.MeshBasicMaterial({ color: 0xff4400, transparent: true }),
+      new THREE.MeshBasicMaterial({ color: 0xff8800, transparent: true }),
+      new THREE.MeshBasicMaterial({ color: 0xffcc00, transparent: true }),
+      new THREE.MeshBasicMaterial({ color: 0xff2200, transparent: true }),
+    ],
+  }
+};
+
+// Pool of reusable meshes
+const POOL_SIZE = 80;
+
 export class EffectsManager {
   constructor(scene) {
     this.scene = scene;
     this.particles = [];
     this.flashes = [];
+
+    // Pre-allocate particle pool
+    this.pool = [];
+    for (let i = 0; i < POOL_SIZE; i++) {
+      const mesh = new THREE.Mesh(SHARED.particleGeo, SHARED.mats.spark);
+      mesh.visible = false;
+      mesh.frustumCulled = false;
+      scene.add(mesh);
+      this.pool.push(mesh);
+    }
+    this.poolIndex = 0;
+  }
+
+  _getPoolMesh() {
+    const mesh = this.pool[this.poolIndex % POOL_SIZE];
+    this.poolIndex++;
+    return mesh;
   }
 
   muzzleFlash(position, direction) {
-    const geo = new THREE.SphereGeometry(0.15, 6, 6);
-    const mat = new THREE.MeshBasicMaterial({ color: 0xffffaa });
-    const mesh = new THREE.Mesh(geo, mat);
+    const mesh = this._getPoolMesh();
+    mesh.material = SHARED.mats.muzzle;
+    mesh.scale.setScalar(0.15);
     mesh.position.copy(position).add(direction.clone().multiplyScalar(0.5));
-    this.scene.add(mesh);
-
-    const light = new THREE.PointLight(0xffaa00, 3, 8);
-    light.position.copy(mesh.position);
-    this.scene.add(light);
-
-    this.flashes.push({ mesh, light, lifetime: 0.05, age: 0 });
+    mesh.visible = true;
+    this.flashes.push({ mesh, light: null, lifetime: 0.05, age: 0 });
   }
 
   bulletTracer(from, to) {
     const dir = new THREE.Vector3().subVectors(to, from);
     const len = dir.length();
-    const geo = new THREE.CylinderGeometry(0.02, 0.02, len, 4);
-    const mat = new THREE.MeshBasicMaterial({ color: 0xffffcc, transparent: true, opacity: 0.8 });
-    const mesh = new THREE.Mesh(geo, mat);
+    const mesh = this._getPoolMesh();
+    mesh.material = SHARED.mats.tracer;
+    mesh.scale.set(1, len, 1);
     const mid = new THREE.Vector3().addVectors(from, to).multiplyScalar(0.5);
     mesh.position.copy(mid);
     mesh.lookAt(to);
     mesh.rotateX(Math.PI / 2);
-    this.scene.add(mesh);
+    mesh.visible = true;
     this.particles.push({ mesh, velocity: new THREE.Vector3(), lifetime: 0.1, age: 0, gravity: false, type: 'tracer' });
   }
 
   explosion(position, scale = 1) {
-    for (let i = 0; i < 30; i++) {
+    // Reduced from 30 to 12 particles
+    const count = 12;
+    for (let i = 0; i < count; i++) {
       const size = (Math.random() * 0.15 + 0.05) * scale;
-      const geo = new THREE.SphereGeometry(size, 4, 4);
-      const colors = [0xff4400, 0xff8800, 0xffcc00, 0xff2200];
-      const mat = new THREE.MeshBasicMaterial({ color: colors[i % colors.length], transparent: true, opacity: 1 });
-      const mesh = new THREE.Mesh(geo, mat);
+      const mesh = this._getPoolMesh();
+      mesh.material = SHARED.mats.explosion[i % 4];
+      mesh.scale.setScalar(size);
       mesh.position.copy(position);
-      this.scene.add(mesh);
+      mesh.visible = true;
       const vel = new THREE.Vector3(
         (Math.random() - 0.5) * 15 * scale,
         Math.random() * 12 * scale,
         (Math.random() - 0.5) * 15 * scale
       );
-      this.particles.push({ mesh, velocity: vel, lifetime: 0.8 + Math.random() * 0.4, age: 0, gravity: true, type: 'explosion' });
+      this.particles.push({ mesh, velocity: vel, lifetime: 0.6, age: 0, gravity: true, type: 'explosion' });
     }
-    // Flash light
-    const light = new THREE.PointLight(0xff6600, 5, 20);
-    light.position.copy(position);
-    this.scene.add(light);
-    this.flashes.push({ mesh: null, light, lifetime: 0.3, age: 0 });
+    // No PointLight — just flash a bigger mesh
+    const flash = this._getPoolMesh();
+    flash.material = SHARED.mats.explosion[0];
+    flash.scale.setScalar(2 * scale);
+    flash.position.copy(position);
+    flash.visible = true;
+    this.flashes.push({ mesh: flash, light: null, lifetime: 0.15, age: 0 });
   }
 
   bulletImpact(position) {
-    for (let i = 0; i < 6; i++) {
-      const geo = new THREE.SphereGeometry(0.04, 4, 4);
-      const mat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 1 });
-      const mesh = new THREE.Mesh(geo, mat);
+    // Reduced from 6 to 3 particles
+    for (let i = 0; i < 3; i++) {
+      const mesh = this._getPoolMesh();
+      mesh.material = SHARED.mats.spark;
+      mesh.scale.setScalar(0.04);
       mesh.position.copy(position);
-      this.scene.add(mesh);
+      mesh.visible = true;
       const vel = new THREE.Vector3(
         (Math.random() - 0.5) * 8,
         Math.random() * 5,
         (Math.random() - 0.5) * 8
       );
-      this.particles.push({ mesh, velocity: vel, lifetime: 0.3, age: 0, gravity: true, type: 'spark' });
+      this.particles.push({ mesh, velocity: vel, lifetime: 0.2, age: 0, gravity: true, type: 'spark' });
     }
   }
 
   bloodEffect(position) {
-    for (let i = 0; i < 8; i++) {
-      const geo = new THREE.SphereGeometry(0.06, 4, 4);
-      const mat = new THREE.MeshBasicMaterial({ color: 0xcc0000, transparent: true, opacity: 0.9 });
-      const mesh = new THREE.Mesh(geo, mat);
+    // Reduced from 8 to 4 particles
+    for (let i = 0; i < 4; i++) {
+      const mesh = this._getPoolMesh();
+      mesh.material = SHARED.mats.blood;
+      mesh.scale.setScalar(0.06);
       mesh.position.copy(position);
-      this.scene.add(mesh);
+      mesh.visible = true;
       const vel = new THREE.Vector3(
         (Math.random() - 0.5) * 5,
         Math.random() * 3,
         (Math.random() - 0.5) * 5
       );
-      this.particles.push({ mesh, velocity: vel, lifetime: 0.5, age: 0, gravity: true, type: 'blood' });
+      this.particles.push({ mesh, velocity: vel, lifetime: 0.35, age: 0, gravity: true, type: 'blood' });
     }
   }
 
   update(delta) {
+    // Velocity temp vector — avoids clone() allocation every frame
+    const tempVel = new THREE.Vector3();
+
     // Update particles
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       p.age += delta;
       if (p.age >= p.lifetime) {
-        this.scene.remove(p.mesh);
-        p.mesh.geometry.dispose();
-        p.mesh.material.dispose();
+        p.mesh.visible = false;
         this.particles.splice(i, 1);
         continue;
       }
-      p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
+      tempVel.copy(p.velocity).multiplyScalar(delta);
+      p.mesh.position.add(tempVel);
       if (p.gravity) {
         p.velocity.y -= 15 * delta;
         if (p.mesh.position.y < 0.05) { p.mesh.position.y = 0.05; p.velocity.set(0, 0, 0); }
       }
       const life = 1 - p.age / p.lifetime;
-      p.mesh.material.opacity = life;
-      p.mesh.scale.setScalar(life);
+      p.mesh.scale.setScalar(p.mesh.scale.x * (life > 0.1 ? 1 : life / 0.1));
     }
     // Update flashes
     for (let i = this.flashes.length - 1; i >= 0; i--) {
       const f = this.flashes[i];
       f.age += delta;
       if (f.age >= f.lifetime) {
-        if (f.mesh) { this.scene.remove(f.mesh); f.mesh.geometry.dispose(); f.mesh.material.dispose(); }
-        if (f.light) { this.scene.remove(f.light); }
+        if (f.mesh) f.mesh.visible = false;
         this.flashes.splice(i, 1);
       }
     }

@@ -1,6 +1,22 @@
 import * as THREE from 'three';
 import { randomInRange, randomIntInRange, distance2D, angleBetween, clamp, rayAABBIntersect } from './utils.js';
 
+// Shared bot geometries & static materials — created once, reused by every bot
+const BOT_GEO = {
+  body: new THREE.BoxGeometry(0.6, 1.2, 0.4),
+  head: new THREE.BoxGeometry(0.35, 0.35, 0.35),
+  visor: new THREE.BoxGeometry(0.3, 0.08, 0.05),
+  leg: new THREE.BoxGeometry(0.18, 0.8, 0.25)
+};
+const BOT_MATS = {
+  head: new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6 }),
+  leg: new THREE.MeshStandardMaterial({ color: 0x1a1a1a }),
+  visor: {
+    1: new THREE.MeshBasicMaterial({ color: 0x00d0ff }),
+    2: new THREE.MeshBasicMaterial({ color: 0xff3e3e })
+  }
+};
+
 export class EnemyManager {
   constructor(scene) {
     this.scene = scene;
@@ -25,36 +41,25 @@ export class EnemyManager {
     const group = new THREE.Group();
     const bodyColor = team === 1 ? 0x00d0ff : 0xff3e3e;
 
-    // Body
-    const body = new THREE.Mesh(
-      new THREE.BoxGeometry(0.6, 1.2, 0.4),
-      new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.5, emissive: bodyColor, emissiveIntensity: 0.5 })
-    );
+    // Body — material is per-bot (it flashes on fire), geometry is shared
+    const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.5, emissive: bodyColor, emissiveIntensity: 0.5 });
+    const body = new THREE.Mesh(BOT_GEO.body, bodyMat);
     body.position.y = 1.4;
     group.add(body);
 
     // Head
-    const head = new THREE.Mesh(
-      new THREE.BoxGeometry(0.35, 0.35, 0.35),
-      new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6 })
-    );
+    const head = new THREE.Mesh(BOT_GEO.head, BOT_MATS.head);
     head.position.y = 2.2;
     group.add(head);
 
     // Visor
-    const visor = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 0.08, 0.05),
-      new THREE.MeshBasicMaterial({ color: bodyColor })
-    );
+    const visor = new THREE.Mesh(BOT_GEO.visor, BOT_MATS.visor[team]);
     visor.position.set(0, 2.25, 0.18);
     group.add(visor);
 
     // Legs
     for (const xOff of [-0.15, 0.15]) {
-      const leg = new THREE.Mesh(
-        new THREE.BoxGeometry(0.18, 0.8, 0.25),
-        new THREE.MeshStandardMaterial({ color: 0x1a1a1a })
-      );
+      const leg = new THREE.Mesh(BOT_GEO.leg, BOT_MATS.leg);
       leg.position.set(xOff, 0.4, 0);
       group.add(leg);
     }
@@ -65,6 +70,9 @@ export class EnemyManager {
     const bot = {
       team: team,
       mesh: group,
+      bodyMat: bodyMat,
+      baseColor: bodyColor,
+      isFlashing: false,
       health: 100,
       maxHealth: 100,
       damage: 10,
@@ -87,7 +95,7 @@ export class EnemyManager {
     this.enemies.push(bot);
   }
 
-  update(delta, playerInfo, hardpointPos) {
+  update(delta, playerInfo, hardpointPos, gameMode = 'TDM') {
     const damages = []; // { damage, source, target }
     
     for (let i = 0; i < this.enemies.length; i++) {
@@ -98,7 +106,7 @@ export class EnemyManager {
         if (b.mesh.rotation.x < Math.PI / 2) {
           b.mesh.rotation.x += delta * 5;
         }
-        if (b.deathTimer > 3) { // Respawn
+        if (gameMode !== 'ELIMINATION' && b.deathTimer > 3) { // Respawn
           b.alive = true;
           b.health = b.maxHealth;
           b.deathTimer = 0;
@@ -111,16 +119,18 @@ export class EnemyManager {
         continue;
       }
 
-      // Highlight flash logic
+      // Highlight flash logic — only touch the material when the state changes
       if (b.highlightTimer > 0) {
         b.highlightTimer -= delta;
-        const bodyMat = b.mesh.children[0].material;
-        bodyMat.emissiveIntensity = 3.0;
-        bodyMat.emissive.setHex(0xffffff);
-      } else {
-        const bodyMat = b.mesh.children[0].material;
-        bodyMat.emissiveIntensity = 0.5;
-        bodyMat.emissive.setHex(bodyMat.color.getHex());
+        if (!b.isFlashing) {
+          b.isFlashing = true;
+          b.bodyMat.emissiveIntensity = 3.0;
+          b.bodyMat.emissive.setHex(0xffffff);
+        }
+      } else if (b.isFlashing) {
+        b.isFlashing = false;
+        b.bodyMat.emissiveIntensity = 0.5;
+        b.bodyMat.emissive.setHex(b.baseColor);
       }
 
       if (b.spawnDelay > 0) {

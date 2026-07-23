@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import { clamp, resolveCollisions } from './utils.js';
 
+// Reusable temp vectors — avoids allocating new Vector3s every frame
+const _UP = new THREE.Vector3(0, 1, 0);
+const _forward = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _moveDir = new THREE.Vector3();
+
 export const KeyBinds = {
   forward: 'KeyW',
   backward: 'KeyS',
@@ -11,6 +17,8 @@ export const KeyBinds = {
   slide: 'KeyC',
   reload: 'KeyR',
   melee: 'KeyF',
+  spin: 'KeyB',
+  flip: 'KeyV',
   wep1: 'Digit1',
   wep2: 'Digit2',
   wep3: 'Digit3'
@@ -50,7 +58,10 @@ export class Player {
     this.collisionBoxes = [];
     this.headBobTimer = 0;
     this.locked = false;
+    this.targetFOV = 75;
+    this.scrollDelta = 0;
 
+    this._onWheel = (e) => { if (this.locked) this.scrollDelta += Math.sign(e.deltaY); };
     this._onKeyDown = (e) => { this.keys[e.code] = true; };
     this._onKeyUp = (e) => { this.keys[e.code] = false; };
     this._onMouseMove = (e) => { if (this.locked) this.handleMouseMove(e); };
@@ -76,6 +87,7 @@ export class Player {
     document.addEventListener('mouseup', this._onMouseUp);
     document.addEventListener('contextmenu', this._onContext);
     document.addEventListener('pointerlockchange', this._onPointerLock);
+    document.addEventListener('wheel', this._onWheel);
   }
 
   setCollisionBoxes(boxes) { this.collisionBoxes = boxes; }
@@ -94,14 +106,14 @@ export class Player {
   update(delta) {
     if (!this.alive) return;
 
-    // Movement direction
-    const forward = new THREE.Vector3(0, 0, -1);
-    const right = new THREE.Vector3(1, 0, 0);
+    // Movement direction (reused temp vectors — no per-frame allocation)
+    const forward = _forward.set(0, 0, -1);
+    const right = _right.set(1, 0, 0);
     const yaw = this.euler.y;
-    forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-    right.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+    forward.applyAxisAngle(_UP, yaw);
+    right.applyAxisAngle(_UP, yaw);
 
-    const moveDir = new THREE.Vector3();
+    const moveDir = _moveDir.set(0, 0, 0);
     if (this.keys[KeyBinds.forward]) moveDir.add(forward);
     if (this.keys[KeyBinds.backward]) moveDir.sub(forward);
     if (this.keys[KeyBinds.left]) moveDir.sub(right);
@@ -116,7 +128,7 @@ export class Player {
       this.isSliding = true;
       this.slideTimer = this.slideDuration;
       this.slideDir.copy(forward);
-      this.slideCooldown = 1.0;
+      this.slideCooldown = 0.3;
     }
 
     if (this.isSliding) {
@@ -147,7 +159,15 @@ export class Player {
     // Jump & gravity
     if (this.keys[KeyBinds.jump]) {
       if (!this.jumpKeyPressed) {
-        if (this.isGrounded || this.jumpCount < this.maxJumps) {
+        if (this.isSliding) {
+          // Slide-jump: preserve slide momentum + add upward velocity
+          this.velocity.y = this.jumpForce * 1.1; // slightly higher jump
+          // Keep the horizontal velocity from the slide (don't reset it)
+          this.isSliding = false;
+          this.currentHeight = this.standHeight;
+          this.isGrounded = false;
+          this.jumpCount = 1;
+        } else if (this.isGrounded || this.jumpCount < this.maxJumps) {
           this.velocity.y = this.jumpForce;
           this.isGrounded = false;
           this.jumpCount++;
@@ -170,6 +190,20 @@ export class Player {
       this.velocity.y = 0;
       this.isGrounded = true;
       this.jumpCount = 0;
+      
+      if (this.keys[KeyBinds.jump] && this.isMoving()) {
+        // Bunny hop: preserve momentum and immediately jump again
+        const currentSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
+        this.velocity.y = this.jumpForce;
+        this.isGrounded = false;
+        this.jumpCount = 1;
+        // Preserve 70% momentum
+        if (currentSpeed > this.moveSpeed) {
+          const scale = (this.moveSpeed + (currentSpeed - this.moveSpeed) * 0.7) / currentSpeed;
+          this.velocity.x *= scale;
+          this.velocity.z *= scale;
+        }
+      }
     }
 
     // Collision with world
@@ -189,6 +223,13 @@ export class Player {
 
     // Camera rotation
     this.camera.rotation.copy(this.euler);
+
+    // Sprint FOV
+    this.targetFOV = this.isSliding ? 85 : (this.isSprinting ? 82 : 75);
+    if (Math.abs(this.camera.fov - this.targetFOV) > 0.1) {
+      this.camera.fov += (this.targetFOV - this.camera.fov) * 10 * delta;
+      this.camera.updateProjectionMatrix();
+    }
   }
 
   takeDamage(amount) {
@@ -217,6 +258,19 @@ export class Player {
   getRightMouseDown() { return this.rightMouseDown; }
   getEuler() { return this.euler; }
 
+  getScrollDelta() {
+    const d = this.scrollDelta;
+    this.scrollDelta = 0;
+    return d;
+  }
+
+  applyExplosionForce(explosionPos, force) {
+    const dir = new THREE.Vector3().subVectors(this.position, explosionPos).normalize();
+    this.velocity.add(dir.multiplyScalar(force));
+    this.isGrounded = false;
+    this.jumpCount = this.maxJumps; // prevent double-jump after boost
+  }
+
   reset(spawnPoint) {
     this.position.set(spawnPoint.x, this.standHeight, spawnPoint.z);
     this.velocity.set(0, 0, 0);
@@ -239,5 +293,6 @@ export class Player {
     document.removeEventListener('mouseup', this._onMouseUp);
     document.removeEventListener('contextmenu', this._onContext);
     document.removeEventListener('pointerlockchange', this._onPointerLock);
+    document.removeEventListener('wheel', this._onWheel);
   }
 }

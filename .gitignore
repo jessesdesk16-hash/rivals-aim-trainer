@@ -1,0 +1,11 @@
+# Local Claude Code config (dev server + permissions)
+.claude/
+
+# Dependencies / build output
+node_modules/
+dist/
+
+# OS cruft
+Thumbs.db
+desktop.ini
+.DS_Store

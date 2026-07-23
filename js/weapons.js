@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { clamp, lerp } from './utils.js';
 
+// Fixed weapon positions — allocated once, not per-frame
+const HIP_POS = new THREE.Vector3(0.25, -0.15, -0.4);
+const ADS_POS = new THREE.Vector3(0, -0.06, -0.25);
+
 export class WeaponSystem {
   constructor(scene, camera) {
     this.scene = scene;
@@ -11,7 +15,8 @@ export class WeaponSystem {
       { id: 2, name: 'THUNDER SNIPER', type: 'sniper', damage: 90, headMultiplier: 3.0, fireRate: 1.2, spread: 0.001, adsSpread: 0.0002, ammo: 5, maxAmmo: 5, reserve: 25, reloadTime: 3.0, range: 300, auto: false },
       { id: 3, name: 'PUMP SHOTGUN', type: 'shotgun', damage: 15, headMultiplier: 1.5, fireRate: 0.8, spread: 0.08, adsSpread: 0.04, ammo: 8, maxAmmo: 8, reserve: 40, reloadTime: 2.5, range: 30, auto: false }, // shoots 8 pellets in main.js
       { id: 4, name: 'HEAVY LMG', type: 'lmg', damage: 28, headMultiplier: 2.0, fireRate: 0.08, spread: 0.04, adsSpread: 0.015, ammo: 100, maxAmmo: 100, reserve: 300, reloadTime: 4.5, range: 120, auto: true },
-      { id: 5, name: 'TACTICAL PISTOL', type: 'pistol', damage: 24, headMultiplier: 2.5, fireRate: 0.2, spread: 0.015, adsSpread: 0.005, ammo: 15, maxAmmo: 15, reserve: 60, reloadTime: 1.0, range: 60, auto: false }
+      { id: 5, name: 'TACTICAL PISTOL', type: 'pistol', damage: 24, headMultiplier: 2.5, fireRate: 0.2, spread: 0.015, adsSpread: 0.005, ammo: 15, maxAmmo: 15, reserve: 60, reloadTime: 1.0, range: 60, auto: false },
+      { id: 6, name: 'SHERIFF', type: 'revolver', damage: 55, headMultiplier: 3.0, fireRate: 0.4, spread: 0.008, adsSpread: 0.002, ammo: 6, maxAmmo: 6, reserve: 36, reloadTime: 2.2, range: 120, auto: false }
     ];
     this.weapons = []; // Current loadout
     this.currentIndex = 0;
@@ -26,6 +31,12 @@ export class WeaponSystem {
     this.recoilZ = 0;
     this.bobTimer = 0;
     this.lastShotFired = false;
+    // Sheriff gun-spin animation
+    this.spinTimer = 0;
+    this.spinDuration = 0.55;
+    // Sheriff toss-flip animation
+    this.flipTimer = 0;
+    this.flipDuration = 0.6;
   }
 
   init() {
@@ -116,6 +127,20 @@ export class WeaponSystem {
         const pistolSight = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.02, 0.01), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
         pistolSight.position.set(0, 0.04, -0.06); meshGroup.add(pistolSight);
       }
+      else if (weaponDef.id === 6) { // SHERIFF REVOLVER
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.05, 0.14), skinMat);
+        frame.position.set(0, 0.01, 0.01); meshGroup.add(frame); // Frame
+        const revBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.22, 10), barrel);
+        revBarrel.rotation.x = Math.PI / 2; revBarrel.position.set(0, 0.02, -0.17); meshGroup.add(revBarrel); // Long barrel
+        const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.07, 6), gold);
+        drum.rotation.x = Math.PI / 2; drum.position.set(0, -0.005, -0.04); meshGroup.add(drum); // Revolving cylinder
+        const revGrip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.09, 0.05), wood);
+        revGrip.position.set(0, -0.07, 0.07); revGrip.rotation.x = -Math.PI / 6; meshGroup.add(revGrip); // Wood grip
+        const hammer = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.03, 0.02), dark);
+        hammer.position.set(0, 0.045, 0.07); meshGroup.add(hammer); // Hammer
+        const revSight = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.02, 0.01), gold);
+        revSight.position.set(0, 0.04, -0.27); meshGroup.add(revSight); // Front sight
+      }
 
       meshGroup.visible = (i === 0);
       this.weaponMeshes.push(meshGroup);
@@ -130,14 +155,48 @@ export class WeaponSystem {
 
   switchWeapon(index) {
     if (index === this.currentIndex || this.isReloading || index < 0 || index > 2) return;
+    this._cancelSpin();
+    this._cancelFlip();
     this.weaponMeshes[this.currentIndex].visible = false;
     this.currentIndex = index;
     this.weaponMeshes[this.currentIndex].visible = true;
     this.fireTimer = 0.2;
+    // Sheriff gets a flashy draw spin
+    if (this.weapons[index].type === 'revolver') this.startSpin();
+  }
+
+  startSpin() {
+    if (this.spinTimer > 0 || this.flipTimer > 0 || this.isReloading) return; // one trick at a time
+    if (this.weapons[this.currentIndex].type !== 'revolver') return;
+    this.spinTimer = this.spinDuration;
+  }
+
+  startFlip() {
+    if (this.flipTimer > 0 || this.spinTimer > 0 || this.isReloading) return; // one trick at a time
+    if (this.weapons[this.currentIndex].type !== 'revolver') return;
+    this.flipTimer = this.flipDuration;
+  }
+
+  _cancelSpin() {
+    if (this.spinTimer > 0) {
+      this.spinTimer = 0;
+      this.weaponMeshes[this.currentIndex].rotation.x = 0;
+    }
+  }
+
+  _cancelFlip() {
+    if (this.flipTimer > 0) {
+      this.flipTimer = 0;
+      const mesh = this.weaponMeshes[this.currentIndex];
+      mesh.rotation.x = 0;
+      mesh.position.y = 0;
+    }
   }
 
   shoot(isFiring) {
     if (this.isReloading || this.fireTimer > 0) return null;
+    this._cancelSpin(); // firing snaps the gun out of its spin
+    this._cancelFlip(); // ...and out of its flip
     const w = this.weapons[this.currentIndex];
     if (w.ammo <= 0) { this.reload(); return null; }
     if (!w.auto && this.lastShotFired) return null;
@@ -160,9 +219,12 @@ export class WeaponSystem {
 
   reload() {
     const w = this.weapons[this.currentIndex];
-    if (this.isReloading || w.ammo === w.maxAmmo || w.reserve <= 0) return;
+    if (this.isReloading || w.ammo === w.maxAmmo || w.reserve <= 0) return false;
+    this._cancelSpin();
+    this._cancelFlip();
     this.isReloading = true;
     this.reloadTimer = w.reloadTime;
+    return true;
   }
 
   startADS() { this.adsActive = true; }
@@ -184,9 +246,7 @@ export class WeaponSystem {
       }
     }
     this.adsTransition = lerp(this.adsTransition, this.adsActive ? 1 : 0, delta * 8);
-    const hip = new THREE.Vector3(0.25, -0.15, -0.4);
-    const ads = new THREE.Vector3(0, -0.06, -0.25);
-    this.weaponGroup.position.lerpVectors(hip, ads, this.adsTransition);
+    this.weaponGroup.position.lerpVectors(HIP_POS, ADS_POS, this.adsTransition);
     if (isMoving && !this.adsActive) {
       this.bobTimer += delta * (isSprinting ? 14 : 8);
       this.weaponGroup.position.y += Math.sin(this.bobTimer) * 0.008;
@@ -197,6 +257,35 @@ export class WeaponSystem {
     this.recoilZ = lerp(this.recoilZ, 0, delta * 12);
     this.weaponGroup.position.y += this.recoilY;
     this.weaponGroup.position.z += this.recoilZ;
+
+    // Sheriff gun spin — full cowboy twirl around the trigger guard
+    if (this.spinTimer > 0) {
+      this.spinTimer -= delta;
+      const mesh = this.weaponMeshes[this.currentIndex];
+      if (this.spinTimer <= 0) {
+        this.spinTimer = 0;
+        mesh.rotation.x = 0;
+      } else {
+        const t = 1 - this.spinTimer / this.spinDuration; // 0 → 1
+        const eased = 1 - Math.pow(1 - t, 2); // ease-out: fast whip, gentle catch
+        mesh.rotation.x = -eased * Math.PI * 2;
+      }
+    }
+
+    // Sheriff toss-flip — gun flips end-over-end in the air and lands back in hand
+    if (this.flipTimer > 0) {
+      this.flipTimer -= delta;
+      const mesh = this.weaponMeshes[this.currentIndex];
+      if (this.flipTimer <= 0) {
+        this.flipTimer = 0;
+        mesh.rotation.x = 0;
+        mesh.position.y = 0;
+      } else {
+        const t = 1 - this.flipTimer / this.flipDuration; // 0 → 1
+        mesh.position.y = Math.sin(t * Math.PI) * 0.22;   // tossed up, caught on the way down
+        mesh.rotation.x = t * Math.PI * 2;                 // forward flip (opposite direction to the spin)
+      }
+    }
   }
 
   resetShotFlag() { this.lastShotFired = false; }
