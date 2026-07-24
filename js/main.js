@@ -342,9 +342,35 @@ function startGame() {
     if (currentLoadout[i]) el.innerHTML = `<span class="slot-key">${i + 1}</span>${SHORT_NAMES[currentLoadout[i].id] || '?'}`;
   });
 
+  // Scale bot difficulty by how many matches the player has won (persists across sessions)
+  enemies.setDifficulty(getGamesWon());
+
   const teamSize = parseInt(document.getElementById('team-size-select').value);
   enemies.spawnBots(teamSize - 1, teamSize);
 }
+
+// ===== PROGRESSION =====
+function getGamesWon() {
+  const n = parseInt(localStorage.getItem('cbs_gamesWon') || '0', 10);
+  return isNaN(n) ? 0 : n;
+}
+function addGameWon() {
+  const n = getGamesWon() + 1;
+  localStorage.setItem('cbs_gamesWon', String(n));
+  return n;
+}
+function didPlayerWin() {
+  if (gameMode === 'ELIMINATION') return teamBlueScore >= 5;
+  if (gameMode === 'HARDPOINT') return teamBlueScore >= MAX_SCORE_HARDPOINT;
+  return teamBlueScore >= MAX_SCORE_TDM;
+}
+function updateCombatLevel() {
+  const el = document.getElementById('combat-level');
+  if (!el) return;
+  const wins = getGamesWon();
+  el.textContent = wins > 0 ? `COMBAT LEVEL ${wins} · ${wins} WIN${wins === 1 ? '' : 'S'}` : 'COMBAT LEVEL 0 · ROOKIE';
+}
+updateCombatLevel();
 
 function pauseGame() {
   gameState = State.PAUSED;
@@ -370,8 +396,16 @@ function quitToMenu() {
 function gameOver() {
   gameState = State.GAMEOVER;
   document.exitPointerLock();
-  // stats object needs to match hud.js expectations
-  hud.showGameOver({ kills, wave: Math.floor(teamBlueScore), shots, hits });
+
+  const won = didPlayerWin();
+  let winCount = getGamesWon();
+  if (won) {
+    winCount = addGameWon();
+    audio.playKillStreak && audio.playKillStreak();
+  }
+  updateCombatLevel();
+
+  hud.showGameOver({ kills, wave: Math.floor(teamBlueScore), shots, hits, won, winCount });
 }
 
 // ===== GAME LOOP =====
@@ -717,7 +751,7 @@ function gameLoop() {
              teamRedScore++;
              if (teamRedScore >= MAX_SCORE_TDM) gameOver();
           }
-          hud.showKillFeed('Enemy', 'Me', 'UNKNOWN', false);
+          hud.showKillFeed('Enemy', 'Me', (d.source && d.source.weaponName) || 'UNKNOWN', false);
         }
       } else if (d.target) {
         // Bot hit another bot

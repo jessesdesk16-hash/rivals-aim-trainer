@@ -283,12 +283,27 @@ export class HUD {
   showGameOver(stats) {
     const el = document.getElementById('game-over');
     const statsEl = document.getElementById('game-over-stats');
+    const titleEl = document.getElementById('game-over-title');
+    const won = !!stats.won;
+
+    if (titleEl) {
+      titleEl.textContent = won ? 'MISSION COMPLETE' : 'MISSION FAILED';
+      titleEl.style.color = won ? '#00ff88' : '#ff3e3e';
+      titleEl.style.textShadow = won
+        ? '0 0 30px rgba(0,255,136,0.6)'
+        : '0 0 30px rgba(255,62,62,0.6)';
+    }
+
     if (statsEl) {
+      const winLine = won && stats.winCount !== undefined
+        ? `<br><span style="color:#00ff88;">🏆 Total Wins: ${stats.winCount}</span> <span style="color:#888; font-size:0.9rem;">(bots scale with your wins)</span>`
+        : '';
       statsEl.innerHTML = `
         Kills: <span>${stats.kills}</span><br>
-        Waves Survived: <span>${stats.wave}</span><br>
+        Score: <span>${stats.wave}</span><br>
         Shots Fired: <span>${stats.shots}</span><br>
         Accuracy: <span>${stats.shots > 0 ? Math.round((stats.hits / stats.shots) * 100) : 0}%</span>
+        ${winLine}
       `;
     }
     if (el) el.style.display = 'flex';
