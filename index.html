@@ -103,7 +103,7 @@
     <!-- Wave & Kills -->
     <div id="wave-info">WAVE 1</div>
     <div id="kill-count">KILLS: 0</div>
-    <div id="fps-counter" style="display:none; position:fixed; top:8px; left:50%; transform:translateX(-50%); font-family:'Orbitron'; font-size:0.85rem; color:#00ff88; z-index:60;">60 FPS</div>
+    <div id="fps-counter" style="display:none; position:fixed; top:8px; left:50%; transform:translateX(-50%); font-family:'Orbitron'; font-size:0.85rem; z-index:60; background:rgba(5,8,12,0.5); padding:3px 10px; border-radius:4px; letter-spacing:0.05em; white-space:nowrap;"><span id="fps-val" style="color:#00ff88;">-- FPS</span> · <span id="ping-val" style="color:#00ff88;">-- ms</span></div>
 
     <!-- Zone Warning -->
     <div id="zone-warning">⚠ OUTSIDE SAFE ZONE ⚠</div>
@@ -277,7 +277,7 @@
         <input type="range" id="set-vol" min="0" max="100" value="30" style="width:100%; margin-top:6px;">
       </div>
       <div style="display:flex; align-items:center; justify-content:space-between;">
-        <label style="color:#aaa; letter-spacing:0.1em;">SHOW FPS COUNTER</label>
+        <label style="color:#aaa; letter-spacing:0.1em;">SHOW FPS / PING</label>
         <input type="checkbox" id="set-fps" style="width:22px; height:22px; cursor:pointer;">
       </div>
     </div>

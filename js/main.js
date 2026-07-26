@@ -282,7 +282,7 @@ function renderLeaderboard() {
 }
 
 // ===== SETTINGS =====
-const DEFAULT_SETTINGS = { quality: 'medium', sens: 100, volume: 30, fps: false };
+const DEFAULT_SETTINGS = { quality: 'medium', sens: 100, volume: 30, fps: true };
 let settings = loadSettings();
 
 function loadSettings() {
@@ -572,18 +572,44 @@ function gameOver() {
   });
 }
 
+// ===== LATENCY (PING) =====
+// No multiplayer server yet, so this measures round-trip to the host serving
+// the game (real once deployed; ~0 on localhost). Repoint at the game server later.
+let lastPing = -1;
+function measurePing() {
+  const start = performance.now();
+  fetch(location.href, { method: 'HEAD', cache: 'no-store' })
+    .then(() => { lastPing = performance.now() - start; })
+    .catch(() => { lastPing = -1; });
+}
+setInterval(measurePing, 2000);
+measurePing();
+
 // ===== GAME LOOP =====
 let fpsAccum = 0, fpsFrames = 0;
 const fpsEl = document.getElementById('fps-counter');
+const fpsValEl = document.getElementById('fps-val');
+const pingValEl = document.getElementById('ping-val');
 function gameLoop() {
   requestAnimationFrame(gameLoop);
   const delta = Math.min(clock.getDelta(), 0.05);
 
-  // FPS counter (only when enabled)
+  // FPS + ping readout (only when enabled)
   if (settings.fps && fpsEl) {
     fpsAccum += delta; fpsFrames++;
     if (fpsAccum >= 0.5) {
-      fpsEl.textContent = Math.round(fpsFrames / fpsAccum) + ' FPS';
+      const fps = Math.round(fpsFrames / fpsAccum);
+      fpsValEl.textContent = fps + ' FPS';
+      fpsValEl.style.color = fps >= 50 ? '#00ff88' : fps >= 30 ? '#ffcc00' : '#ff3e3e';
+
+      if (lastPing < 0) {
+        pingValEl.textContent = '-- ms';
+        pingValEl.style.color = '#888';
+      } else {
+        const ms = Math.round(lastPing);
+        pingValEl.textContent = ms + ' ms';
+        pingValEl.style.color = ms < 60 ? '#00ff88' : ms < 120 ? '#ffcc00' : '#ff3e3e';
+      }
       fpsAccum = 0; fpsFrames = 0;
     }
   }
