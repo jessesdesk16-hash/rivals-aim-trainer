@@ -103,7 +103,6 @@
     <!-- Wave & Kills -->
     <div id="wave-info">WAVE 1</div>
     <div id="kill-count">KILLS: 0</div>
-    <div id="fps-counter" style="display:none; position:fixed; top:8px; left:50%; transform:translateX(-50%); font-family:'Orbitron'; font-size:0.85rem; z-index:60; background:rgba(5,8,12,0.5); padding:3px 10px; border-radius:4px; letter-spacing:0.05em; white-space:nowrap;"><span id="fps-val" style="color:#00ff88;">-- FPS</span> · <span id="ping-val" style="color:#00ff88;">-- ms</span></div>
 
     <!-- Zone Warning -->
     <div id="zone-warning">⚠ OUTSIDE SAFE ZONE ⚠</div>
@@ -125,6 +124,9 @@
       <div class="weapon-slot"><span class="slot-key">3</span>SNP</div>
     </div>
   </div>
+
+  <!-- FPS / PING readout (top-level so it shows on menus AND in-match) -->
+  <div id="fps-counter" style="display:none; position:fixed; top:8px; left:50%; transform:translateX(-50%); font-family:'Orbitron'; font-size:0.85rem; z-index:200; background:rgba(5,8,12,0.5); padding:3px 10px; border-radius:4px; letter-spacing:0.05em; white-space:nowrap; pointer-events:none;"><span id="fps-val" style="color:#00ff88;">-- FPS</span> · <span id="ping-val" style="color:#00ff88;">-- ms</span></div>
 
   <!-- PAUSE MENU -->
   <div id="pause-menu">
