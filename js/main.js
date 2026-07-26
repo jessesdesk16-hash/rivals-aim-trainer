@@ -8,6 +8,7 @@ import { Zone } from './zone.js';
 import { HUD } from './hud.js';
 import { AudioManager } from './audio.js';
 import { Progression, SHOP_ITEMS } from './progression.js';
+import { TouchControls, GamepadInput, isTouchDevice } from './input.js';
 import { distance2D, lerp } from './utils.js';
 
 const progression = new Progression();
@@ -126,6 +127,19 @@ function applyMeleeSkin(skin) {
 // Grenade assets — shared, never disposed
 const GRENADE_GEO = new THREE.SphereGeometry(0.15, 6, 6);
 const GRENADE_MAT = new THREE.MeshBasicMaterial({ color: 0x44aa44 });
+
+// ===== ALTERNATE INPUT (touch + gamepad) =====
+const inputActions = {
+  onSwapWeapon: () => {
+    let next = weapons.getCurrentIndex() + 1;
+    if (next > 2) next = 0;
+    weapons.switchWeapon(next);
+  },
+  onPause: () => { if (gameState === State.PLAYING) pauseGame(); else if (gameState === State.PAUSED) resumeGame(); }
+};
+const touch = new TouchControls(player, inputActions);
+const gamepad = new GamepadInput(player, inputActions);
+const TOUCH_DEVICE = isTouchDevice();
 
 // ===== INITIALIZATION =====
 world.init();
@@ -473,6 +487,7 @@ function startGame() {
   document.getElementById('main-menu').style.display = 'none';
   hud.show();
   hud.hideGameOver();
+  if (TOUCH_DEVICE) touch.enable();
 
   const mapTheme = document.getElementById('map-select').value;
   if (world.mapTheme !== mapTheme) {
@@ -538,12 +553,14 @@ updateCombatLevel();
 function pauseGame() {
   gameState = State.PAUSED;
   document.getElementById('pause-menu').style.display = 'flex';
+  touch.disable();
   document.exitPointerLock();
 }
 
 function resumeGame() {
   gameState = State.PLAYING;
   document.getElementById('pause-menu').style.display = 'none';
+  if (TOUCH_DEVICE) touch.enable();
   player.requestPointerLock();
 }
 
@@ -551,6 +568,7 @@ function quitToMenu() {
   gameState = State.MENU;
   document.getElementById('pause-menu').style.display = 'none';
   hud.hide();
+  touch.disable();
   document.getElementById('main-menu').style.display = 'flex';
   enemies.clear();
   document.exitPointerLock();
@@ -558,6 +576,7 @@ function quitToMenu() {
 
 function gameOver() {
   gameState = State.GAMEOVER;
+  touch.disable();
   document.exitPointerLock();
 
   const won = didPlayerWin();
@@ -622,6 +641,10 @@ function gameLoop() {
       fpsAccum = 0; fpsFrames = 0;
     }
   }
+
+  // Controller polling — feeds the same virtual input touch uses.
+  // Skipped while a gamepad drives nothing (returns false when none connected).
+  if (gameState === State.PLAYING) gamepad.update(delta);
 
   if (gameState === State.PLAYING) {
     // Player Respawn Logic
@@ -698,15 +721,15 @@ function gameLoop() {
       else weapons.stopADS();
 
       // Weapon switching — keys
-      if (player.keys[KeyBinds.wep1]) weapons.switchWeapon(0);
-      if (player.keys[KeyBinds.wep2]) weapons.switchWeapon(1);
-      if (player.keys[KeyBinds.wep3]) weapons.switchWeapon(2);
+      if (player.key(KeyBinds.wep1)) weapons.switchWeapon(0);
+      if (player.key(KeyBinds.wep2)) weapons.switchWeapon(1);
+      if (player.key(KeyBinds.wep3)) weapons.switchWeapon(2);
 
       // Sheriff gun spin (hold to keep twirling)
-      if (player.keys[KeyBinds.spin]) weapons.startSpin();
+      if (player.key(KeyBinds.spin)) weapons.startSpin();
 
       // Sheriff toss-flip (hold to keep flipping)
-      if (player.keys[KeyBinds.flip]) weapons.startFlip();
+      if (player.key(KeyBinds.flip)) weapons.startFlip();
 
       // Weapon switching — scroll wheel
       if (player.getScrollDelta) {
@@ -721,7 +744,7 @@ function gameLoop() {
 
       // Grenade (G key)
       if (grenadeCooldown > 0) grenadeCooldown -= delta;
-      if (player.keys['KeyG'] && grenadeCount > 0 && grenadeCooldown <= 0) {
+      if (player.key('KeyG') && grenadeCount > 0 && grenadeCooldown <= 0) {
         grenadeCount--;
         grenadeCooldown = GRENADE_COOLDOWN;
         const pos = player.getPosition();
@@ -811,7 +834,7 @@ function gameLoop() {
       // Melee
       if (punchCooldown > 0) punchCooldown -= delta;
       
-      if (player.keys[KeyBinds.melee] && punchCooldown <= 0 && !isPunching) {
+      if (player.key(KeyBinds.melee) && punchCooldown <= 0 && !isPunching) {
         isPunching = true;
         activeMeleeSkin = document.getElementById('melee-select').value;
         const isSickle = activeMeleeSkin === 'SICKLE';
@@ -909,7 +932,7 @@ function gameLoop() {
 
       // If F is held, keep the melee weapon out (even when resting between swings)
       if (!isPunching) {
-         if (player.keys[KeyBinds.melee]) {
+         if (player.key(KeyBinds.melee)) {
              fistGroup.visible = true;
              weapons.weaponGroup.visible = false;
              // Set to rest position
@@ -927,7 +950,7 @@ function gameLoop() {
     }
 
     // Reload key — play the sound only when a reload actually starts
-    if (player.isAlive() && player.keys[KeyBinds.reload]) {
+    if (player.isAlive() && player.key(KeyBinds.reload)) {
       if (weapons.reload()) audio.playReload();
     }
     if (player.isAlive()) {

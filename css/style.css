@@ -172,6 +172,50 @@ canvas{display:block;position:fixed;top:0;left:0;width:100vw;height:100vh;z-inde
 .skin-swatch:hover{transform:scale(1.1)}
 .skin-swatch.selected{border-color:#fff;box-shadow:0 0 15px currentColor;transform:scale(1.1)}
 
+/* ===== TOUCH CONTROLS ===== */
+#touch-controls{position:fixed;inset:0;z-index:90;pointer-events:none;touch-action:none}
+#tc-stick{position:fixed;left:110px;bottom:110px;width:120px;height:120px;margin:-60px 0 0 -60px;
+  border:2px solid rgba(0,240,255,.4);border-radius:50%;background:rgba(0,20,30,.3);opacity:.35;transition:opacity .15s;
+  pointer-events:none}
+#tc-knob{position:absolute;left:50%;top:50%;width:52px;height:52px;transform:translate(-50%,-50%);
+  border-radius:50%;background:rgba(0,240,255,.45);box-shadow:0 0 16px rgba(0,240,255,.5)}
+.tc-btn{position:fixed;pointer-events:auto;display:flex;align-items:center;justify-content:center;
+  font-family:'Orbitron',sans-serif;font-weight:700;color:#dff;background:rgba(10,25,35,.55);
+  border:2px solid rgba(0,240,255,.45);border-radius:50%;user-select:none;-webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;transition:background .1s,transform .1s}
+.tc-btn.active{background:rgba(0,240,255,.4);transform:scale(.92)}
+.tc-fire{right:24px;bottom:24px;width:96px;height:96px;font-size:.95rem;border-color:rgba(255,62,62,.6);
+  background:rgba(60,10,15,.5);color:#ffdede}
+.tc-small{width:62px;height:62px;font-size:.62rem;letter-spacing:.03em}
+
+/* Landscape phones: little vertical room, so shrink and re-stack the side buttons.
+   !important is needed because the positions are inline attributes. */
+@media (max-height:500px){
+  .tc-small{width:54px;height:54px;font-size:.55rem}
+  .tc-fire{width:80px;height:80px;font-size:.85rem}
+  #tc-sprint{bottom:118px !important; left:14px !important}
+  #tc-slide{bottom:180px !important; left:14px !important}
+  /* Inner column clears the 80px FIRE button (which occupies bottom 24-104) */
+  #tc-jump{bottom:115px !important; right:20px !important}
+  #tc-reload{bottom:175px !important; right:20px !important}
+  #tc-swap{bottom:235px !important; right:20px !important}
+  /* Outer column sits left of FIRE, so it can start lower */
+  #tc-nade{bottom:30px !important; right:130px !important}
+  #tc-ads{bottom:90px !important; right:130px !important}
+  #tc-melee{bottom:150px !important; right:130px !important}
+}
+
+/* Bigger touch targets / tighter HUD on small screens */
+@media (max-width:820px){
+  #minimap{width:92px;height:92px}
+  #minimap-container{top:10px;left:10px}
+  .stat-bars{bottom:auto;top:112px;left:10px;transform:scale(.8);transform-origin:top left}
+  #ammo-display{bottom:auto;top:10px;right:10px;transform:scale(.85);transform-origin:top right}
+  #weapon-slots{display:none}
+  .menu-btn-grid{grid-template-columns:1fr 1fr}
+  #main-menu .controls-info{display:none}
+}
+
 /* ===== MENU BUTTON GRID ===== */
 .menu-btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-top:1.2rem;max-width:520px;width:92vw}
 .menu-btn-grid .menu-btn{margin:0;width:100%;text-align:center}

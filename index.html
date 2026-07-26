@@ -125,6 +125,25 @@
     </div>
   </div>
 
+  <!-- TOUCH CONTROLS (mobile) -->
+  <div id="touch-controls" style="display:none;">
+    <!-- Movement joystick (left side) -->
+    <div id="tc-stick"><div id="tc-knob"></div></div>
+    <!-- Action buttons (right side) -->
+    <div id="tc-fire" class="tc-btn tc-fire">FIRE</div>
+    <div id="tc-ads" class="tc-btn tc-small" style="bottom:190px; right:150px;">ADS</div>
+    <div id="tc-jump" class="tc-btn tc-small" style="bottom:120px; right:20px;">JUMP</div>
+    <div id="tc-reload" class="tc-btn tc-small" style="bottom:190px; right:20px;">RLD</div>
+    <div id="tc-swap" class="tc-btn tc-small" style="bottom:260px; right:20px;">SWAP</div>
+    <div id="tc-melee" class="tc-btn tc-small" style="bottom:260px; right:150px;">MELEE</div>
+    <div id="tc-nade" class="tc-btn tc-small" style="bottom:120px; right:150px;">NADE</div>
+    <div id="tc-sprint" class="tc-btn tc-small" style="bottom:250px; left:20px;">RUN</div>
+    <div id="tc-slide" class="tc-btn tc-small" style="bottom:320px; left:20px;">SLIDE</div>
+  </div>
+
+  <!-- Gamepad connected indicator -->
+  <div id="gamepad-indicator" style="display:none; position:fixed; top:34px; right:12px; z-index:200; font-family:'Orbitron'; font-size:0.7rem; color:#00ff88; background:rgba(5,8,12,0.5); padding:3px 8px; border-radius:4px;">🎮 CONTROLLER</div>
+
   <!-- FPS / PING readout (top-level so it shows on menus AND in-match) -->
   <div id="fps-counter" style="display:none; position:fixed; top:8px; right:12px; font-family:'Orbitron'; font-size:0.85rem; z-index:200; background:rgba(5,8,12,0.5); padding:3px 10px; border-radius:4px; letter-spacing:0.05em; white-space:nowrap; pointer-events:none;"><span id="fps-val" style="color:#00ff88;">-- FPS</span> · <span id="ping-val" style="color:#00ff88;">-- ms</span></div>
 

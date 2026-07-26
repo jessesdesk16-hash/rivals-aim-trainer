@@ -61,6 +61,13 @@ export class Player {
     this.targetFOV = 75;
     this.scrollDelta = 0;
 
+    // Alternate input (touch / gamepad). analogMove overrides WASD when non-zero;
+    // virtual keys and fire flags OR together with the physical ones.
+    this.analogMove = { x: 0, z: 0 };
+    this.virtualKeys = {};
+    this.virtualFire = false;
+    this.virtualADS = false;
+
     this._onWheel = (e) => { if (this.locked) this.scrollDelta += Math.sign(e.deltaY); };
     this._onKeyDown = (e) => { this.keys[e.code] = true; };
     this._onKeyUp = (e) => { this.keys[e.code] = false; };
@@ -93,8 +100,14 @@ export class Player {
   setCollisionBoxes(boxes) { this.collisionBoxes = boxes; }
 
   requestPointerLock() {
+    // Touch devices steer via TouchControls — pointer lock is meaningless there
+    // and throws on some mobile browsers.
+    if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) return;
     const canvas = document.querySelector('canvas');
-    if (canvas) canvas.requestPointerLock();
+    if (canvas && canvas.requestPointerLock) {
+      const r = canvas.requestPointerLock();
+      if (r && typeof r.catch === 'function') r.catch(() => {});
+    }
   }
 
   handleMouseMove(e) {
@@ -102,6 +115,19 @@ export class Player {
     this.euler.x -= e.movementY * this.mouseSensitivity;
     this.euler.x = clamp(this.euler.x, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
   }
+
+  // ---- alternate input hooks (touch / gamepad) ----
+  // Look deltas arrive already scaled in radians, so they bypass mouseSensitivity.
+  applyLook(dx, dy) {
+    this.euler.y -= dx;
+    this.euler.x -= dy;
+    this.euler.x = clamp(this.euler.x, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
+  }
+  setVirtualKey(code, down) { this.virtualKeys[code] = !!down; }
+  setVirtualFire(down) { this.virtualFire = !!down; }
+  setVirtualADS(down) { this.virtualADS = !!down; }
+  // True if either the physical key or its virtual counterpart is held
+  key(code) { return !!(this.keys[code] || this.virtualKeys[code]); }
 
   update(delta) {
     if (!this.alive) return;
@@ -114,17 +140,25 @@ export class Player {
     right.applyAxisAngle(_UP, yaw);
 
     const moveDir = _moveDir.set(0, 0, 0);
-    if (this.keys[KeyBinds.forward]) moveDir.add(forward);
-    if (this.keys[KeyBinds.backward]) moveDir.sub(forward);
-    if (this.keys[KeyBinds.left]) moveDir.sub(right);
-    if (this.keys[KeyBinds.right]) moveDir.add(right);
+    // Analog stick (touch joystick / gamepad) takes priority when deflected
+    const aMag = Math.hypot(this.analogMove.x, this.analogMove.z);
+    if (aMag > 0.01) {
+      moveDir.addScaledVector(forward, this.analogMove.z);
+      moveDir.addScaledVector(right, this.analogMove.x);
+    } else {
+      if (this.key(KeyBinds.forward)) moveDir.add(forward);
+      if (this.key(KeyBinds.backward)) moveDir.sub(forward);
+      if (this.key(KeyBinds.left)) moveDir.sub(right);
+      if (this.key(KeyBinds.right)) moveDir.add(right);
+    }
 
-    // Sprint
-    this.isSprinting = this.keys[KeyBinds.sprint] && this.keys[KeyBinds.forward] && !this.isSliding;
+    // Sprint — needs the sprint key plus forward input (stick or W)
+    const movingForward = this.key(KeyBinds.forward) || (aMag > 0.85 && this.analogMove.z > 0.6);
+    this.isSprinting = this.key(KeyBinds.sprint) && movingForward && !this.isSliding;
 
     // Slide
     if (this.slideCooldown > 0) this.slideCooldown -= delta;
-    if (this.keys[KeyBinds.slide] && this.isSprinting && !this.isSliding && this.slideCooldown <= 0) {
+    if (this.key(KeyBinds.slide) && this.isSprinting && !this.isSliding && this.slideCooldown <= 0) {
       this.isSliding = true;
       this.slideTimer = this.slideDuration;
       this.slideDir.copy(forward);
@@ -157,7 +191,7 @@ export class Player {
     }
 
     // Jump & gravity
-    if (this.keys[KeyBinds.jump]) {
+    if (this.key(KeyBinds.jump)) {
       if (!this.jumpKeyPressed) {
         if (this.isSliding) {
           // Slide-jump: preserve slide momentum + add upward velocity
@@ -191,7 +225,7 @@ export class Player {
       this.isGrounded = true;
       this.jumpCount = 0;
       
-      if (this.keys[KeyBinds.jump] && this.isMoving()) {
+      if (this.key(KeyBinds.jump) && this.isMoving()) {
         // Bunny hop: preserve momentum and immediately jump again
         const currentSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
         this.velocity.y = this.jumpForce;
@@ -251,11 +285,14 @@ export class Player {
   isAlive() { return this.alive; }
   getPosition() { return this.position.clone(); }
   getDirection() { const d = new THREE.Vector3(0, 0, -1); d.applyEuler(this.euler); return d; }
-  isMoving() { return this.keys[KeyBinds.forward] || this.keys[KeyBinds.left] || this.keys[KeyBinds.backward] || this.keys[KeyBinds.right]; }
+  isMoving() {
+    if (Math.hypot(this.analogMove.x, this.analogMove.z) > 0.01) return true;
+    return this.key(KeyBinds.forward) || this.key(KeyBinds.left) || this.key(KeyBinds.backward) || this.key(KeyBinds.right);
+  }
   getIsSprinting() { return this.isSprinting; }
   getIsSliding() { return this.isSliding; }
-  getMouseDown() { return this.mouseDown; }
-  getRightMouseDown() { return this.rightMouseDown; }
+  getMouseDown() { return this.mouseDown || this.virtualFire; }
+  getRightMouseDown() { return this.rightMouseDown || this.virtualADS; }
   getEuler() { return this.euler; }
 
   getScrollDelta() {
