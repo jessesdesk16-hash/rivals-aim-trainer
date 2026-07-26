@@ -9,3 +9,7 @@ dist/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Server runtime
+server/node_modules/
+server/*.log
