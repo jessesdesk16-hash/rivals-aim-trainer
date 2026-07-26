@@ -171,3 +171,48 @@ canvas{display:block;position:fixed;top:0;left:0;width:100vw;height:100vh;z-inde
 .skin-swatch{width:40px;height:40px;border-radius:4px;cursor:pointer;border:2px solid transparent;transition:all .2s;box-shadow:0 0 10px rgba(0,0,0,.5)}
 .skin-swatch:hover{transform:scale(1.1)}
 .skin-swatch.selected{border-color:#fff;box-shadow:0 0 15px currentColor;transform:scale(1.1)}
+
+/* ===== MENU BUTTON GRID ===== */
+.menu-btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-top:1.2rem;max-width:520px;width:92vw}
+.menu-btn-grid .menu-btn{margin:0;width:100%;text-align:center}
+
+/* ===== OVERLAY SCREENS (profile / shop / leaderboard / settings) ===== */
+.overlay-screen{position:fixed;inset:0;z-index:150;display:none;flex-direction:column;align-items:center;justify-content:flex-start;
+  padding:3rem 1rem;background:rgba(5,5,10,.96);backdrop-filter:blur(15px);overflow-y:auto}
+.overlay-screen h2{font-family:'Orbitron',sans-serif;font-size:clamp(1.8rem,5vw,3rem);letter-spacing:.25em;margin-bottom:1.5rem}
+.overlay-screen .panel{background:rgba(20,20,30,.85);border:1px solid rgba(255,255,255,.12);padding:1.5rem 1.8rem;
+  clip-path:polygon(2% 0,100% 0,98% 100%,0 100%)}
+
+/* Profile */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem 1.5rem}
+.stat-grid .stat-row{display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.08);padding:.35rem 0}
+.stat-grid .stat-row span:first-child{color:#888;letter-spacing:.08em;font-size:.9rem}
+.stat-grid .stat-row span:last-child{color:#fff;font-family:'Orbitron',sans-serif;font-weight:600}
+.recent-row{display:flex;justify-content:space-between;align-items:center;padding:.5rem .8rem;font-size:.9rem;
+  background:rgba(0,0,0,.3);border-left:3px solid #666}
+.recent-row.win{border-left-color:#00ff88}
+.recent-row.loss{border-left-color:#ff3e3e}
+
+/* Shop */
+.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem}
+.shop-item{background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.12);padding:1rem;display:flex;flex-direction:column;
+  align-items:center;gap:.6rem;transition:all .2s}
+.shop-item:hover{border-color:#ffd700}
+.shop-swatch{width:56px;height:56px;border-radius:6px;box-shadow:0 0 14px rgba(0,0,0,.6)}
+.shop-name{font-family:'Orbitron',sans-serif;font-size:.75rem;letter-spacing:.05em;text-align:center;color:#ddd}
+.shop-buy{padding:.4rem .9rem;font-family:'Orbitron',sans-serif;font-size:.75rem;letter-spacing:.1em;cursor:pointer;
+  background:transparent;border:1px solid #ffd700;color:#ffd700;transition:all .2s}
+.shop-buy:hover{background:rgba(255,215,0,.15)}
+.shop-buy.owned{border-color:#00ff88;color:#00ff88;cursor:default}
+.shop-buy.equipped{background:rgba(0,255,136,.15);border-color:#00ff88;color:#00ff88}
+.shop-buy.locked{border-color:#555;color:#555;cursor:not-allowed}
+
+/* Leaderboard */
+.lb-row{display:grid;grid-template-columns:44px 1fr 70px 70px;align-items:center;padding:.55rem .8rem;
+  border-bottom:1px solid rgba(255,255,255,.07);font-size:.95rem}
+.lb-row.head{color:#888;font-family:'Orbitron',sans-serif;font-size:.7rem;letter-spacing:.1em;border-bottom:1px solid rgba(255,255,255,.2)}
+.lb-row.you{background:rgba(0,208,255,.12);border-left:3px solid #00d0ff}
+.lb-row .lb-rank{font-family:'Orbitron',sans-serif;font-weight:700;color:#ffd700}
+.lb-row .lb-name{letter-spacing:.05em}
+.lb-row.you .lb-name{color:#00d0ff;font-weight:700}
+.lb-num{text-align:right;font-family:'Orbitron',sans-serif}

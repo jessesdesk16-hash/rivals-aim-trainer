@@ -298,11 +298,15 @@ export class HUD {
       const winLine = won && stats.winCount !== undefined
         ? `<br><span style="color:#00ff88;">🏆 Total Wins: ${stats.winCount}</span> <span style="color:#888; font-size:0.9rem;">(bots scale with your wins)</span>`
         : '';
+      const coinLine = stats.coinsEarned !== undefined
+        ? `<br><span style="color:#ffd700;">💰 +${stats.coinsEarned} coins</span> <span style="color:#888; font-size:0.9rem;">(balance: ${stats.coins})</span>`
+        : '';
       statsEl.innerHTML = `
         Kills: <span>${stats.kills}</span><br>
         Score: <span>${stats.wave}</span><br>
         Shots Fired: <span>${stats.shots}</span><br>
         Accuracy: <span>${stats.shots > 0 ? Math.round((stats.hits / stats.shots) * 100) : 0}%</span>
+        ${coinLine}
         ${winLine}
       `;
     }

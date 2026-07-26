@@ -7,12 +7,15 @@ import { EffectsManager } from './effects.js';
 import { Zone } from './zone.js';
 import { HUD } from './hud.js';
 import { AudioManager } from './audio.js';
+import { Progression, SHOP_ITEMS } from './progression.js';
 import { distance2D, lerp } from './utils.js';
+
+const progression = new Progression();
 
 // ===== GAME STATE =====
 const State = { MENU: 0, PLAYING: 1, PAUSED: 2, GAMEOVER: 3 };
 let gameState = State.MENU;
-let kills = 0, shots = 0, hits = 0, killStreak = 0;
+let kills = 0, shots = 0, hits = 0, killStreak = 0, deaths = 0;
 
 let gameMode = 'TDM';
 let teamBlueScore = 0;
@@ -171,6 +174,169 @@ document.getElementById('ch-size').addEventListener('input', (e) => root.style.s
 document.getElementById('ch-thick').addEventListener('input', (e) => root.style.setProperty('--ch-thick', `${e.target.value}px`));
 document.getElementById('ch-gap').addEventListener('input', (e) => root.style.setProperty('--ch-gap', `${e.target.value}px`));
 
+// ===== OVERLAY SCREEN NAVIGATION (profile / shop / leaderboard / settings) =====
+function openScreen(id, renderFn) {
+  audio.init();
+  audio.playMenuClick();
+  document.getElementById('main-menu').style.display = 'none';
+  if (renderFn) renderFn();
+  document.getElementById(id).style.display = 'flex';
+}
+function closeScreen(id) {
+  audio.playMenuClick();
+  document.getElementById(id).style.display = 'none';
+  document.getElementById('main-menu').style.display = 'flex';
+  updateCombatLevel();
+}
+
+document.getElementById('open-profile-btn').addEventListener('click', () => openScreen('profile-menu', renderProfile));
+document.getElementById('close-profile-btn').addEventListener('click', () => closeScreen('profile-menu'));
+document.getElementById('open-shop-btn').addEventListener('click', () => openScreen('shop-menu', renderShop));
+document.getElementById('close-shop-btn').addEventListener('click', () => closeScreen('shop-menu'));
+document.getElementById('open-leaderboard-btn').addEventListener('click', () => openScreen('leaderboard-menu', renderLeaderboard));
+document.getElementById('close-leaderboard-btn').addEventListener('click', () => closeScreen('leaderboard-menu'));
+document.getElementById('open-settings-btn').addEventListener('click', () => openScreen('settings-menu', null));
+document.getElementById('close-settings-btn').addEventListener('click', () => closeScreen('settings-menu'));
+
+// ---- Profile ----
+function renderProfile() {
+  const s = progression.getStats();
+  const rank = progression.getRank();
+  document.getElementById('profile-rank').innerHTML = `<span style="color:${rank.color};">${rank.name}</span>`;
+  document.getElementById('profile-coins').textContent = '💰 ' + s.coins;
+  const winRate = s.matches > 0 ? Math.round((s.wins / s.matches) * 100) : 0;
+  document.getElementById('profile-stats').innerHTML = `
+    <div class="stat-row"><span>WINS</span><span>${s.wins}</span></div>
+    <div class="stat-row"><span>LOSSES</span><span>${s.losses}</span></div>
+    <div class="stat-row"><span>KILLS</span><span>${s.kills}</span></div>
+    <div class="stat-row"><span>DEATHS</span><span>${s.deaths}</span></div>
+    <div class="stat-row"><span>K/D</span><span>${progression.getKD()}</span></div>
+    <div class="stat-row"><span>WIN RATE</span><span>${winRate}%</span></div>
+    <div class="stat-row"><span>MATCHES</span><span>${s.matches}</span></div>
+    <div class="stat-row"><span>COSMETICS</span><span>${s.unlocked.length}</span></div>
+  `;
+  const recentEl = document.getElementById('profile-recent');
+  if (!s.recent.length) {
+    recentEl.innerHTML = `<div style="color:#666; text-align:center; padding:1rem;">No matches yet — deploy!</div>`;
+  } else {
+    recentEl.innerHTML = s.recent.map(m => `
+      <div class="recent-row ${m.won ? 'win' : 'loss'}">
+        <span>${m.won ? '✅ WIN' : '❌ LOSS'} · ${m.mode}</span>
+        <span>${m.kills}K / ${m.deaths}D · <span style="color:#ffd700;">+${m.coins}</span></span>
+      </div>`).join('');
+  }
+}
+
+// ---- Shop ----
+function renderShop() {
+  document.getElementById('shop-coins').textContent = '💰 ' + progression.getCoins();
+  const grid = document.getElementById('shop-grid');
+  grid.innerHTML = '';
+  for (const item of SHOP_ITEMS) {
+    const owned = progression.isUnlocked(item.id);
+    const equipped = progression.getEquipped(item.type) === item.id;
+    const affordable = progression.getCoins() >= item.cost;
+    const color = '#' + item.value.slice(2);
+
+    const cell = document.createElement('div');
+    cell.className = 'shop-item';
+    let btnClass = 'shop-buy', btnText;
+    if (equipped) { btnClass += ' equipped'; btnText = 'EQUIPPED'; }
+    else if (owned) { btnClass += ' owned'; btnText = 'EQUIP'; }
+    else if (!affordable) { btnClass += ' locked'; btnText = `💰 ${item.cost}`; }
+    else { btnText = `💰 ${item.cost}`; }
+
+    cell.innerHTML = `
+      <div class="shop-swatch" style="background:${color};"></div>
+      <div class="shop-name">${item.name}<br><span style="color:#666; font-size:0.65rem;">${item.type === 'weapon' ? 'WEAPON SKIN' : 'CHARACTER'}</span></div>
+      <button class="${btnClass}">${btnText}</button>
+    `;
+    const btn = cell.querySelector('button');
+    btn.addEventListener('click', () => {
+      if (equipped) return;
+      if (owned) { progression.equip(item.id); }
+      else {
+        const res = progression.buy(item.id);
+        if (!res.ok) { if (res.reason === 'poor') { btn.textContent = 'NOT ENOUGH'; setTimeout(renderShop, 700); } return; }
+        audio.playPickup && audio.playPickup();
+      }
+      applyCosmetics();
+      renderShop();
+    });
+    grid.appendChild(cell);
+  }
+}
+
+// ---- Leaderboard ----
+function renderLeaderboard() {
+  const rows = progression.getLeaderboard();
+  const list = document.getElementById('leaderboard-list');
+  list.innerHTML = `<div class="lb-row head"><span>#</span><span>PLAYER</span><span class="lb-num">WINS</span><span class="lb-num">KILLS</span></div>`;
+  list.innerHTML += rows.map(r => `
+    <div class="lb-row ${r.you ? 'you' : ''}">
+      <span class="lb-rank">${r.rank}</span>
+      <span class="lb-name">${r.name}</span>
+      <span class="lb-num">${r.wins}</span>
+      <span class="lb-num">${r.kills}</span>
+    </div>`).join('');
+}
+
+// ===== SETTINGS =====
+const DEFAULT_SETTINGS = { quality: 'medium', sens: 100, volume: 30, fps: false };
+let settings = loadSettings();
+
+function loadSettings() {
+  try { return Object.assign({}, DEFAULT_SETTINGS, JSON.parse(localStorage.getItem('cbs_settings') || '{}')); }
+  catch (e) { return { ...DEFAULT_SETTINGS }; }
+}
+function saveSettings() {
+  try { localStorage.setItem('cbs_settings', JSON.stringify(settings)); } catch (e) {}
+}
+function applyQuality(q) {
+  const dpr = window.devicePixelRatio || 1;
+  const cap = q === 'low' ? 0.6 : q === 'high' ? 1.75 : 1.0;
+  renderer.setPixelRatio(Math.min(dpr, cap));
+}
+function applySettings() {
+  applyQuality(settings.quality);
+  player.mouseSensitivity = 0.002 * (settings.sens / 100);
+  audio.setVolume(settings.volume / 100);
+  const fpsEl = document.getElementById('fps-counter');
+  if (fpsEl) fpsEl.style.display = settings.fps ? 'block' : 'none';
+}
+
+// Hydrate settings controls + live-apply on change
+(function initSettingsUI() {
+  const q = document.getElementById('set-quality');
+  const sens = document.getElementById('set-sens'), sensVal = document.getElementById('set-sens-val');
+  const vol = document.getElementById('set-vol'), volVal = document.getElementById('set-vol-val');
+  const fps = document.getElementById('set-fps');
+  q.value = settings.quality;
+  sens.value = settings.sens; sensVal.textContent = (settings.sens / 100).toFixed(2);
+  vol.value = settings.volume; volVal.textContent = settings.volume;
+  fps.checked = settings.fps;
+
+  q.addEventListener('change', e => { settings.quality = e.target.value; applySettings(); saveSettings(); });
+  sens.addEventListener('input', e => { settings.sens = +e.target.value; sensVal.textContent = (settings.sens / 100).toFixed(2); applySettings(); saveSettings(); });
+  vol.addEventListener('input', e => { settings.volume = +e.target.value; volVal.textContent = settings.volume; audio.init(); applySettings(); saveSettings(); });
+  fps.addEventListener('change', e => { settings.fps = e.target.checked; applySettings(); saveSettings(); });
+})();
+
+// ===== COSMETICS =====
+// Equipped character skin recolors the first-person arms; equipped weapon skin
+// overrides the loadout slot colors when the player deploys.
+function applyCosmetics() {
+  const playerVal = progression.getEquippedValue('player');
+  if (playerVal) {
+    const c = parseInt(playerVal);
+    armMesh.material.color.setHex(c);
+    if (MELEE_ASSETS.DEFAULT) MELEE_ASSETS.DEFAULT.mat.color.setHex(c);
+  }
+}
+
+applySettings();
+applyCosmetics();
+
 document.getElementById('open-loadout-btn').addEventListener('click', () => {
   audio.init();
   audio.playMenuClick();
@@ -294,7 +460,7 @@ function startGame() {
   gameMode = document.getElementById('game-mode-select').value;
   teamBlueScore = 0;
   teamRedScore = 0;
-  kills = 0; shots = 0; hits = 0; killStreak = 0;
+  kills = 0; shots = 0; hits = 0; killStreak = 0; deaths = 0;
   respawnTimer = 0;
   roundActive = true;
   roundTimer = 0;
@@ -327,8 +493,12 @@ function startGame() {
   zone.start(gameMode);
   world.respawnPickups();
 
-  // Build and reset weapons
-  weapons.buildWeapons(currentLoadout);
+  // Build and reset weapons — an equipped shop weapon skin overrides the slot colors
+  const equippedWeaponVal = progression.getEquippedValue('weapon');
+  const deployLoadout = equippedWeaponVal
+    ? currentLoadout.map(s => ({ ...s, skin: equippedWeaponVal }))
+    : currentLoadout;
+  weapons.buildWeapons(deployLoadout);
   weapons.weapons.forEach(w => {
     w.ammo = w.maxAmmo;
     w.reserve = w.type === 'sniper' ? 25 : w.type === 'smg' ? 210 : w.type === 'lmg' ? 300 : w.type === 'shotgun' ? 40 : w.type === 'revolver' ? 36 : 150;
@@ -350,15 +520,7 @@ function startGame() {
 }
 
 // ===== PROGRESSION =====
-function getGamesWon() {
-  const n = parseInt(localStorage.getItem('cbs_gamesWon') || '0', 10);
-  return isNaN(n) ? 0 : n;
-}
-function addGameWon() {
-  const n = getGamesWon() + 1;
-  localStorage.setItem('cbs_gamesWon', String(n));
-  return n;
-}
+function getGamesWon() { return progression.getWins(); }
 function didPlayerWin() {
   if (gameMode === 'ELIMINATION') return teamBlueScore >= 5;
   if (gameMode === 'HARDPOINT') return teamBlueScore >= MAX_SCORE_HARDPOINT;
@@ -367,8 +529,9 @@ function didPlayerWin() {
 function updateCombatLevel() {
   const el = document.getElementById('combat-level');
   if (!el) return;
-  const wins = getGamesWon();
-  el.textContent = wins > 0 ? `COMBAT LEVEL ${wins} · ${wins} WIN${wins === 1 ? '' : 'S'}` : 'COMBAT LEVEL 0 · ROOKIE';
+  const rank = progression.getRank();
+  const wins = progression.getWins();
+  el.innerHTML = `<span style="color:${rank.color};">${rank.name}</span> · ${wins} WIN${wins === 1 ? '' : 'S'} · 💰 ${progression.getCoins()}`;
 }
 updateCombatLevel();
 
@@ -398,20 +561,32 @@ function gameOver() {
   document.exitPointerLock();
 
   const won = didPlayerWin();
-  let winCount = getGamesWon();
-  if (won) {
-    winCount = addGameWon();
-    audio.playKillStreak && audio.playKillStreak();
-  }
+  // Record the match: awards coins, updates stats/rank, appends to history
+  const coinsEarned = progression.recordMatch({ won, kills, deaths, mode: gameMode });
+  if (won) audio.playKillStreak && audio.playKillStreak();
   updateCombatLevel();
 
-  hud.showGameOver({ kills, wave: Math.floor(teamBlueScore), shots, hits, won, winCount });
+  hud.showGameOver({
+    kills, wave: Math.floor(teamBlueScore), shots, hits,
+    won, winCount: progression.getWins(), coinsEarned, coins: progression.getCoins()
+  });
 }
 
 // ===== GAME LOOP =====
+let fpsAccum = 0, fpsFrames = 0;
+const fpsEl = document.getElementById('fps-counter');
 function gameLoop() {
   requestAnimationFrame(gameLoop);
   const delta = Math.min(clock.getDelta(), 0.05);
+
+  // FPS counter (only when enabled)
+  if (settings.fps && fpsEl) {
+    fpsAccum += delta; fpsFrames++;
+    if (fpsAccum >= 0.5) {
+      fpsEl.textContent = Math.round(fpsFrames / fpsAccum) + ' FPS';
+      fpsAccum = 0; fpsFrames = 0;
+    }
+  }
 
   if (gameState === State.PLAYING) {
     // Player Respawn Logic
@@ -746,6 +921,7 @@ function gameLoop() {
         audio.playDamage();
         if (!player.isAlive()) {
           killStreak = 0;
+          deaths++;
           respawnTimer = 3.0; // Wait 3s before respawning
           if (gameMode === 'TDM') {
              teamRedScore++;

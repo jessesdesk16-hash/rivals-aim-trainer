@@ -36,9 +36,15 @@
     </div>
 
     <button id="start-btn">DEPLOY</button>
-    <button class="menu-btn" id="open-loadout-btn" style="margin-top: 1rem; border-color: #ffaa00; color: #ffaa00;">LOADOUT & SKINS</button>
-    <button class="menu-btn" id="open-crosshair-btn" style="margin-top: 1rem; border-color: #00ff88; color: #00ff88;">CROSSHAIR EDITOR</button>
-    <button class="menu-btn" id="open-controls-btn" style="margin-top: 1rem; border-color: #ff3e3e; color: #ff3e3e;">CONTROLS</button>
+    <div class="menu-btn-grid">
+      <button class="menu-btn" id="open-loadout-btn" style="border-color: #ffaa00; color: #ffaa00;">LOADOUT & SKINS</button>
+      <button class="menu-btn" id="open-profile-btn" style="border-color: #00d0ff; color: #00d0ff;">PROFILE</button>
+      <button class="menu-btn" id="open-shop-btn" style="border-color: #ffd700; color: #ffd700;">SHOP</button>
+      <button class="menu-btn" id="open-leaderboard-btn" style="border-color: #c77dff; color: #c77dff;">LEADERBOARD</button>
+      <button class="menu-btn" id="open-crosshair-btn" style="border-color: #00ff88; color: #00ff88;">CROSSHAIR</button>
+      <button class="menu-btn" id="open-settings-btn" style="border-color: #ff8800; color: #ff8800;">SETTINGS</button>
+      <button class="menu-btn" id="open-controls-btn" style="border-color: #ff3e3e; color: #ff3e3e;">CONTROLS</button>
+    </div>
     <div class="controls-info">
       <span>WASD</span> Move &nbsp;|&nbsp; <span>MOUSE</span> Aim &nbsp;|&nbsp; <span>CLICK</span> Shoot &nbsp;|&nbsp; <span>RIGHT CLICK</span> ADS<br>
       <span>SHIFT</span> Sprint &nbsp;|&nbsp; <span>SPACE</span> Jump &nbsp;|&nbsp; <span>C</span> Slide &nbsp;|&nbsp; <span>R</span> Reload<br>
@@ -97,6 +103,7 @@
     <!-- Wave & Kills -->
     <div id="wave-info">WAVE 1</div>
     <div id="kill-count">KILLS: 0</div>
+    <div id="fps-counter" style="display:none; position:fixed; top:8px; left:50%; transform:translateX(-50%); font-family:'Orbitron'; font-size:0.85rem; color:#00ff88; z-index:60;">60 FPS</div>
 
     <!-- Zone Warning -->
     <div id="zone-warning">⚠ OUTSIDE SAFE ZONE ⚠</div>
@@ -214,6 +221,67 @@
       <button class="menu-btn" id="loadout-deploy-btn" style="border-color: #00ff88; color: #00ff88;">START MATCH</button>
       <button class="menu-btn" id="close-loadout-btn">BACK TO MENU</button>
     </div>
+  </div>
+
+  <!-- PROFILE -->
+  <div id="profile-menu" class="overlay-screen">
+    <h2 style="color:#00d0ff; text-shadow:0 0 20px rgba(0,208,255,0.5);">PLAYER PROFILE</h2>
+    <div class="panel" style="width:420px; max-width:92vw;">
+      <div id="profile-rank" style="text-align:center; font-family:'Orbitron'; font-size:2rem; margin-bottom:0.5rem;">BRONZE</div>
+      <div id="profile-coins" style="text-align:center; color:#ffd700; font-size:1.3rem; margin-bottom:1.5rem;">💰 0</div>
+      <div class="stat-grid" id="profile-stats"></div>
+      <div class="skin-label" style="margin-top:1.5rem;">RECENT MATCHES</div>
+      <div id="profile-recent" style="display:flex; flex-direction:column; gap:6px; margin-top:8px;"></div>
+    </div>
+    <button class="menu-btn" id="close-profile-btn" style="margin-top:2rem; border-color:#00d0ff; color:#00d0ff;">BACK TO MENU</button>
+  </div>
+
+  <!-- SHOP -->
+  <div id="shop-menu" class="overlay-screen">
+    <h2 style="color:#ffd700; text-shadow:0 0 20px rgba(255,215,0,0.5);">COSMETIC SHOP</h2>
+    <div id="shop-coins" style="color:#ffd700; font-size:1.3rem; margin-bottom:1rem;">💰 0</div>
+    <div class="panel" style="width:640px; max-width:94vw; max-height:60vh; overflow-y:auto;">
+      <div id="shop-grid" class="shop-grid"></div>
+    </div>
+    <button class="menu-btn" id="close-shop-btn" style="margin-top:2rem; border-color:#ffd700; color:#ffd700;">BACK TO MENU</button>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div id="leaderboard-menu" class="overlay-screen">
+    <h2 style="color:#c77dff; text-shadow:0 0 20px rgba(199,125,255,0.5);">LEADERBOARD</h2>
+    <div style="color:#888; margin-bottom:1rem; font-size:0.9rem; letter-spacing:0.1em;">LOCAL · OFFLINE RIVALS</div>
+    <div class="panel" style="width:520px; max-width:92vw; max-height:60vh; overflow-y:auto;">
+      <div id="leaderboard-list"></div>
+    </div>
+    <button class="menu-btn" id="close-leaderboard-btn" style="margin-top:2rem; border-color:#c77dff; color:#c77dff;">BACK TO MENU</button>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="settings-menu" class="overlay-screen">
+    <h2 style="color:#ff8800; text-shadow:0 0 20px rgba(255,136,0,0.5);">SETTINGS</h2>
+    <div class="panel" style="width:420px; max-width:92vw; display:flex; flex-direction:column; gap:1.2rem;">
+      <div>
+        <label style="color:#aaa; letter-spacing:0.1em;">GRAPHICS QUALITY</label>
+        <select id="set-quality" class="weapon-select" style="border-color:#ff8800; color:#ff8800; margin-top:6px;">
+          <option value="low">LOW (best performance)</option>
+          <option value="medium" selected>MEDIUM</option>
+          <option value="high">HIGH (best looks)</option>
+        </select>
+      </div>
+      <div>
+        <label style="color:#aaa; letter-spacing:0.1em;">MOUSE SENSITIVITY · <span id="set-sens-val">1.00</span></label>
+        <input type="range" id="set-sens" min="20" max="300" value="100" style="width:100%; margin-top:6px;">
+      </div>
+      <div>
+        <label style="color:#aaa; letter-spacing:0.1em;">MASTER VOLUME · <span id="set-vol-val">30</span>%</label>
+        <input type="range" id="set-vol" min="0" max="100" value="30" style="width:100%; margin-top:6px;">
+      </div>
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <label style="color:#aaa; letter-spacing:0.1em;">SHOW FPS COUNTER</label>
+        <input type="checkbox" id="set-fps" style="width:22px; height:22px; cursor:pointer;">
+      </div>
+    </div>
+    <button class="menu-btn" id="close-settings-btn" style="margin-top:2rem; border-color:#ff8800; color:#ff8800;">SAVE & BACK</button>
   </div>
 
   <!-- CROSSHAIR EDITOR -->

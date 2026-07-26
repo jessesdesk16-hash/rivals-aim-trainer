@@ -1,13 +1,19 @@
 // ===== PROCEDURAL AUDIO =====
 export class AudioManager {
-  constructor() { this.ctx = null; this.initialized = false; this.master = null; }
+  constructor() { this.ctx = null; this.initialized = false; this.master = null; this.volume = 0.3; }
 
   init() {
+    if (this.initialized) return;
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     this.master = this.ctx.createGain();
-    this.master.gain.value = 0.3;
+    this.master.gain.value = this.volume;
     this.master.connect(this.ctx.destination);
     this.initialized = true;
+  }
+
+  setVolume(v) {
+    this.volume = Math.max(0, Math.min(1, v));
+    if (this.master) this.master.gain.value = this.volume;
   }
 
   _noise(duration, gain = 0.3) {
