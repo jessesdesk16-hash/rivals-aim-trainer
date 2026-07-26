@@ -576,11 +576,30 @@ function gameOver() {
 // No multiplayer server yet, so this measures round-trip to the host serving
 // the game (real once deployed; ~0 on localhost). Repoint at the game server later.
 let lastPing = -1;
+
+function paintPing() {
+  const el = document.getElementById('ping-val');
+  if (!el) return;
+  if (lastPing < 0) {
+    el.textContent = '-- ms';
+    el.style.color = '#888';
+  } else {
+    const ms = Math.round(lastPing);
+    el.textContent = ms + ' ms';
+    el.style.color = ms < 60 ? '#00ff88' : ms < 120 ? '#ffcc00' : '#ff3e3e';
+  }
+}
+
 function measurePing() {
   const start = performance.now();
-  fetch(location.href, { method: 'HEAD', cache: 'no-store' })
+  const url = location.href.split('#')[0] + (location.href.includes('?') ? '&' : '?') + '_p=' + Date.now();
+  // Some hosts don't answer HEAD — fall back to a cache-busted GET before giving up.
+  fetch(url, { method: 'HEAD', cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error('head'); return r; })
+    .catch(() => fetch(url, { method: 'GET', cache: 'no-store' }))
     .then(() => { lastPing = performance.now() - start; })
-    .catch(() => { lastPing = -1; });
+    .catch(() => { lastPing = -1; })
+    .finally(paintPing); // paint immediately — don't wait on the frame loop
 }
 setInterval(measurePing, 2000);
 measurePing();
@@ -589,27 +608,17 @@ measurePing();
 let fpsAccum = 0, fpsFrames = 0;
 const fpsEl = document.getElementById('fps-counter');
 const fpsValEl = document.getElementById('fps-val');
-const pingValEl = document.getElementById('ping-val');
 function gameLoop() {
   requestAnimationFrame(gameLoop);
   const delta = Math.min(clock.getDelta(), 0.05);
 
-  // FPS + ping readout (only when enabled)
+  // FPS readout (ping paints itself from measurePing, independent of this loop)
   if (settings.fps && fpsEl) {
     fpsAccum += delta; fpsFrames++;
     if (fpsAccum >= 0.5) {
       const fps = Math.round(fpsFrames / fpsAccum);
       fpsValEl.textContent = fps + ' FPS';
       fpsValEl.style.color = fps >= 50 ? '#00ff88' : fps >= 30 ? '#ffcc00' : '#ff3e3e';
-
-      if (lastPing < 0) {
-        pingValEl.textContent = '-- ms';
-        pingValEl.style.color = '#888';
-      } else {
-        const ms = Math.round(lastPing);
-        pingValEl.textContent = ms + ' ms';
-        pingValEl.style.color = ms < 60 ? '#00ff88' : ms < 120 ? '#ffcc00' : '#ff3e3e';
-      }
       fpsAccum = 0; fpsFrames = 0;
     }
   }
