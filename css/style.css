@@ -89,7 +89,7 @@ canvas{display:block;position:fixed;top:0;left:0;width:100vw;height:100vh;z-inde
 
 /* Minimap */
 #minimap-container{position:absolute;top:20px;left:20px}
-#minimap{width:180px;height:180px;border:2px solid rgba(0,240,255,.3);border-radius:4px;background:rgba(0,0,0,.5);box-shadow:0 0 15px rgba(0,240,255,.1)}
+#minimap{width:120px;height:120px;border:2px solid rgba(0,240,255,.3);border-radius:4px;background:rgba(0,0,0,.5);box-shadow:0 0 15px rgba(0,240,255,.1)}
 
 /* Wave & Kills */
 #wave-info{position:absolute;top:20px;left:50%;transform:translateX(-50%);font-family:'Orbitron',sans-serif;font-size:.85rem;letter-spacing:.2em;color:#ffaa00;text-shadow:0 0 10px rgba(255,170,0,.4)}
